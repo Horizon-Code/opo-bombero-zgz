@@ -50,3 +50,34 @@ export const getDiario = async () => {
 };
 export const upsertDiario = async (fecha, campos, userId) =>
   supabase.from("diario").upsert({ user_id: userId, fecha, ...campos });
+
+/* ---------- subtemas (mapa del tema) ---------- */
+export const getSubtemas = async () =>
+  (await supabase.from("subtemas").select("*").order("orden")).data || [];
+export const mapTema = async (temaId, nombre, contenido) => {
+  const r = await fetch("/api/map-tema", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ temaId, nombre, contenido }),
+  });
+  const d = await r.json();
+  if (!r.ok) throw new Error(d.error || "Error al mapear");
+  return d.subtemas || [];
+};
+
+/* ---------- banco de preguntas ---------- */
+export const getPreguntas = async () =>
+  (await supabase.from("preguntas").select("*")).data || [];
+export const guardarPreguntas = async (preguntas, userId) => {
+  if (!preguntas.length) return [];
+  const filas = preguntas.map((p) => ({
+    user_id: userId, tema_id: p.tema_id, subtema: p.subtema || null,
+    enunciado: p.pregunta, opciones: p.opciones, correcta: p.correcta,
+    explicacion: p.explicacion || null, modelo: p.modelo || null,
+  }));
+  return (await supabase.from("preguntas").insert(filas).select()).data || [];
+};
+export const actualizarRepaso = async (id, acierto, vista, aciertos) =>
+  supabase.from("preguntas").update({
+    veces_vista: vista, veces_acierto: aciertos,
+    ultimo_resultado: acierto, ultima_fecha: new Date().toISOString().slice(0, 10),
+  }).eq("id", id);
