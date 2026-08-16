@@ -74,7 +74,9 @@ ${bloque}`;
     const texto = (data.content || []).map((c) => c.text || "").join("\n").replace(/```json|```/g, "").trim();
     const preguntas = JSON.parse(texto.slice(texto.indexOf("["), texto.lastIndexOf("]") + 1));
 
-    await supabase.from("uso_api").upsert({ user_id: user.id, dia: hoy, llamadas: (uso?.llamadas || 0) + 1 });
+    // Incremento atómico (función de migracion_3.sql); fallback al upsert si la función no existe aún
+    const { error: rpcErr } = await supabase.rpc("incrementar_uso_api");
+    if (rpcErr) await supabase.from("uso_api").upsert({ user_id: user.id, dia: hoy, llamadas: (uso?.llamadas || 0) + 1 });
     return NextResponse.json({ preguntas, modelo: MODELO, modo: modo || "normal" });
   } catch (e) {
     console.error(e);

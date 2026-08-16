@@ -76,8 +76,13 @@ export const guardarPreguntas = async (preguntas, userId) => {
   }));
   return (await supabase.from("preguntas").insert(filas).select()).data || [];
 };
+const fechaLocal = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
 export const actualizarRepaso = async (id, acierto, vista, aciertos) =>
   supabase.from("preguntas").update({
     veces_vista: vista, veces_acierto: aciertos,
-    ultimo_resultado: acierto, ultima_fecha: new Date().toISOString().slice(0, 10),
+    ultimo_resultado: acierto, ultima_fecha: fechaLocal(),
   }).eq("id", id);
