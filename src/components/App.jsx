@@ -11,6 +11,7 @@ import {
   getProgreso,
 } from "../lib/supabase";
 import { Temario, useEstadoTemas } from "./Temario";
+import { Insignia, Marca } from "./Insignia";
 import { statsBloques, statsDe, bloquePorId } from "../lib/banco";
 import { C, FONT_DISPLAY, FONT_BODY, hazard, hoy, fmtFecha, fechaLocal, Centro, Card, H2, StripeBar, Vacio, Bolita, inputStyle, btnStyle } from "./ui";
 import { puntosBaremo, fmtPuntos, BAREMO } from "../lib/baremo";
@@ -64,6 +65,16 @@ export default function App() {
     return () => sub.subscription.unsubscribe();
   }, []);
 
+  // Tras entrar con Google la URL trae ?code=… (código de un solo uso del login).
+  // Cuando ya hay sesión se quita, para que la dirección quede limpia y al recargar no se intente reutilizar.
+  useEffect(() => {
+    if (!user) return;
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has("code")) return;
+    url.searchParams.delete("code");
+    window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
+  }, [user]);
+
   const [errorCarga, setErrorCarga] = useState(false);
   const [intentoCarga, setIntentoCarga] = useState(0);
 
@@ -93,8 +104,9 @@ export default function App() {
         <div style={hazard(10)} />
         <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
           <div style={{ textAlign: "center", maxWidth: 440 }}>
+            <div style={{ display: "flex", justifyContent: "center", marginBottom: 18 }}><Insignia size={180} /></div>
             <h1 style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 52, letterSpacing: 2, textTransform: "uppercase", color: "#fff", margin: 0, lineHeight: 1 }}>
-              <span style={{ color: C.red }}>Opo</span> Bombero<br /><span style={{ color: C.yellow }}>Zaragoza</span>
+              Opo <span style={{ color: C.red }}>Bomberos</span><br /><span style={{ color: C.yellow }}>Zaragoza</span>
             </h1>
             <p style={{ color: "#9AA3AA", fontSize: 16, margin: "16px 0 28px" }}>
               El temario oficial en 27.425 preguntas, con tu avance tema a tema.<br />Tu parte de servicio diario hasta la plaza.
@@ -135,9 +147,12 @@ export default function App() {
       `}</style>
       <header style={{ background: C.ink, color: "#fff", padding: "14px 20px 10px" }}>
         <div style={{ maxWidth: 1000, margin: "0 auto", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          <h1 style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 30, letterSpacing: 1.5, textTransform: "uppercase", margin: 0 }}>
-            <span style={{ color: C.red }}>Opo</span> Bombero <span style={{ color: C.yellow }}>ZGZ</span>
-          </h1>
+          <a href="/" style={{ display: "inline-flex", alignItems: "center", gap: 10, textDecoration: "none", color: "#fff" }}>
+            <Marca size={38} />
+            <span style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 30, letterSpacing: 1.5, textTransform: "uppercase" }}>
+              Opo <span style={{ color: C.red }}>Bomberos</span> <span style={{ color: C.yellow }}>ZGZ</span>
+            </span>
+          </a>
           <span style={{ fontSize: 12, color: "#9AA3AA", flex: 1 }}>PARTE DE SERVICIO · {fmtFecha(hoy())}</span>
           <span style={{ fontSize: 13, color: "#C8CED3" }}>{user.user_metadata?.name || user.email}</span>
           <button onClick={logout} style={{ background: "transparent", color: "#9AA3AA", border: "1px solid #3A4046", borderRadius: 4, padding: "4px 12px", fontSize: 12 }}>Salir</button>
