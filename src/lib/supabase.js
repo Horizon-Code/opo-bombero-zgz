@@ -17,13 +17,6 @@ export async function logout() {
   await supabase.auth.signOut();
 }
 
-/* ---------- temas ---------- */
-export const getTemas = async () =>
-  (await supabase.from("temas").select("id,nombre,contenido,created_at").order("created_at")).data || [];
-export const addTema = async (nombre, contenido, userId) =>
-  (await supabase.from("temas").insert({ nombre, contenido, user_id: userId }).select().single()).data;
-export const delTema = async (id) => supabase.from("temas").delete().eq("id", id);
-
 /* ---------- resultados ---------- */
 export const getResultados = async () =>
   (await supabase.from("resultados").select("*").order("created_at")).data || [];
@@ -43,46 +36,39 @@ export const getObjetivos = async () => {
 export const setObjetivo = async (prueba, valor, userId) =>
   supabase.from("objetivos").upsert({ user_id: userId, prueba, valor });
 
-/* ---------- diario ---------- */
-export const getDiario = async () => {
-  const rows = (await supabase.from("diario").select("*")).data || [];
-  return Object.fromEntries(rows.map((r) => [r.fecha, r]));
-};
-export const upsertDiario = async (fecha, campos, userId) =>
-  supabase.from("diario").upsert({ user_id: userId, fecha, ...campos });
+/* ---------- diario: la tabla sigue en la base de datos, la app ya no la usa ---------- */
 
-/* ---------- subtemas (mapa del tema) ---------- */
-export const getSubtemas = async () =>
-  (await supabase.from("subtemas").select("*").order("orden")).data || [];
-export const mapTema = async (temaId, nombre, contenido) => {
-  const r = await fetch("/api/map-tema", {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ temaId, nombre, contenido }),
-  });
-  const d = await r.json();
-  if (!r.ok) throw new Error(d.error || "Error al mapear");
-  return d.subtemas || [];
+/* ---------- banco común de preguntas ---------- */
+// Trae las preguntas pedidas por id (en tandas para no pasarse de longitud de URL)
+export const getPreguntasPorIds = async (ids) => {
+  const out = [];
+  for (let i = 0; i < ids.length; i += 150) {
+    const { data, error } = await supabase.from("banco_preguntas")
+      .select("id,tema,nodo,bloque,tipo,dificultad,pregunta,opciones,correcta,explicacion,cita")
+      .in("id", ids.slice(i, i + 150));
+    if (error) throw error;
+    out.push(...(data || []));
+  }
+  const orden = new Map(ids.map((id, i) => [id, i]));
+  return out.sort((a, b) => orden.get(a.id) - orden.get(b.id));
 };
 
-/* ---------- banco de preguntas ---------- */
-export const getPreguntas = async () =>
-  (await supabase.from("preguntas").select("*")).data || [];
-export const guardarPreguntas = async (preguntas, userId) => {
-  if (!preguntas.length) return [];
-  const filas = preguntas.map((p) => ({
-    user_id: userId, tema_id: p.tema_id, subtema: p.subtema || null,
-    enunciado: p.pregunta, opciones: p.opciones, correcta: p.correcta,
-    explicacion: p.explicacion || null, modelo: p.modelo || null,
-  }));
-  return (await supabase.from("preguntas").insert(filas).select()).data || [];
+/* ---------- progreso del usuario por pregunta ---------- */
+// Supabase devuelve como mucho 1.000 filas por petición: se pagina.
+export const getProgreso = async () => {
+  const filas = [];
+  for (let desde = 0; ; desde += 1000) {
+    const { data, error } = await supabase.from("progreso")
+      .select("pregunta_id,bloque,vistas,aciertos,ultimo_resultado,ultima_fecha")
+      .order("pregunta_id").range(desde, desde + 999);
+    if (error) throw error;
+    filas.push(...(data || []));
+    if (!data || data.length < 1000) break;
+  }
+  return Object.fromEntries(filas.map((r) => [r.pregunta_id, r]));
 };
-const fechaLocal = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+export const guardarProgreso = async (filas, userId) => {
+  if (!filas.length) return;
+  const { error } = await supabase.from("progreso").upsert(filas.map((f) => ({ ...f, user_id: userId })));
+  if (error) console.error("guardarProgreso:", error);
 };
-
-export const actualizarRepaso = async (id, acierto, vista, aciertos) =>
-  supabase.from("preguntas").update({
-    veces_vista: vista, veces_acierto: aciertos,
-    ultimo_resultado: acierto, ultima_fecha: fechaLocal(),
-  }).eq("id", id);

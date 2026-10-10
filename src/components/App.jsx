@@ -1,33 +1,23 @@
 "use client";
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  BarChart, Bar, CartesianGrid, ReferenceLine, Cell,
+  CartesianGrid, ReferenceLine,
 } from "recharts";
 import {
   supabase, loginGoogle, logout,
-  getTemas, addTema as dbAddTema, delTema as dbDelTema,
-  getResultados, addResultado,
+  getResultados,
   getMarcas, addMarca, delMarca, getObjetivos, setObjetivo as dbSetObjetivo,
-  getDiario, upsertDiario,
-  getSubtemas, mapTema, getPreguntas, guardarPreguntas, actualizarRepaso,
+  getProgreso,
 } from "../lib/supabase";
-import { puntosBaremo, fmtPuntos, notaFisicaProyectada, BAREMO } from "../lib/baremo";
+import { Temario, useEstadoTemas } from "./Temario";
+import { statsBloques, statsDe, bloquePorId } from "../lib/banco";
+import { C, FONT_DISPLAY, FONT_BODY, hazard, hoy, fmtFecha, fechaLocal, Centro, Card, H2, StripeBar, Vacio, Bolita, inputStyle, btnStyle } from "./ui";
+import { puntosBaremo, fmtPuntos, BAREMO } from "../lib/baremo";
 
 /* ============================================================
    OPO BOMBERO ZGZ — multiusuario (Supabase + Google login)
    ============================================================ */
-
-const C = {
-  bg: "#EEF0F1", panel: "#FFFFFF", ink: "#16191D", inkSoft: "#5A6168",
-  line: "#D6DADD", red: "#D7372C", yellow: "#F5B700", steel: "#2E5E73", green: "#2E7D4F",
-};
-const FONT_DISPLAY = "'Saira Condensed', 'Arial Narrow', sans-serif";
-const FONT_BODY = "'Barlow', system-ui, sans-serif";
-const hazard = (h = 8) => ({
-  height: h,
-  background: `repeating-linear-gradient(135deg, ${C.yellow} 0 14px, ${C.ink} 14px 28px)`,
-});
 
 const fmtTime = (s) => {
   if (s == null || isNaN(s)) return "—";
@@ -46,13 +36,6 @@ const parseTime = (str) => {
   const v = parseFloat(t);
   return isNaN(v) ? null : v;
 };
-// Fecha LOCAL (no UTC): entre las 00:00 y la madrugada, toISOString() devolvía el día anterior
-const hoy = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-};
-const fmtFecha = (d) => { const [y, m, day] = String(d).split("-"); return `${day}/${m}/${y.slice(2)}`; };
-
 // Objetivos por defecto alineados al plan v2 y al baremo oficial (Anexo III)
 const PRUEBAS = [
   { id: "r1500", nombre: "1.500 m", tipo: "tiempo", mejor: "menor", defObj: 268, hint: "mm:ss" }, // 4:28 = 10 pts
@@ -63,12 +46,6 @@ const PRUEBAS = [
   { id: "dom", nombre: "Dominadas", tipo: "reps", mejor: "mayor", defObj: 10, hint: "repeticiones" },
   { id: "press", nombre: "Press banca 45 kg", tipo: "reps", mejor: "mayor", defObj: 20, hint: "repeticiones" },
 ];
-// Semana tipo del plan v2
-const TIPOS_ENTRENO = [
-  "Carrera calidad (VO2/ritmo)", "Series umbral", "Fuerza tracción + cuerda",
-  "Fuerza pierna + core", "Natación", "Combinado sábado", "Bici Z2",
-  "Descanso activo", "Descanso",
-];
 
 /* ============================================================ */
 export default function App() {
@@ -76,13 +53,10 @@ export default function App() {
   const [tab, setTab] = useState("panel");
   const [ready, setReady] = useState(false);
 
-  const [temas, setTemas] = useState([]);
   const [resultados, setResultados] = useState([]);
   const [marcas, setMarcas] = useState([]);
   const [objetivos, setObjetivos] = useState({});
-  const [diario, setDiario] = useState({});
-  const [subtemas, setSubtemas] = useState([]);
-  const [preguntas, setPreguntas] = useState([]);
+  const [progreso, setProgreso] = useState({});
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data.user || null));
@@ -99,9 +73,9 @@ export default function App() {
     (async () => {
       try {
         setErrorCarga(false);
-        const [t, r, m, o, d, st, pr] = await Promise.all([getTemas(), getResultados(), getMarcas(), getObjetivos(), getDiario(), getSubtemas(), getPreguntas()]);
+        const [r, m, o, pg] = await Promise.all([getResultados(), getMarcas(), getObjetivos(), getProgreso()]);
         if (cancelado) return;
-        setTemas(t); setResultados(r); setMarcas(m); setObjetivos(o); setDiario(d); setSubtemas(st); setPreguntas(pr);
+        setResultados(r); setMarcas(m); setObjetivos(o); setProgreso(pg);
         setReady(true);
       } catch (e) {
         console.error("Carga inicial:", e);
@@ -110,19 +84,6 @@ export default function App() {
     })();
     return () => { cancelado = true; };
   }, [user, intentoCarga]);
-
-  const statsTema = useMemo(() => {
-    const map = {};
-    temas.forEach((t) => (map[t.id] = { ok: 0, total: 0, tests: 0 }));
-    // Los repasos de fallos NO cuentan (repasas justo lo que fallas → hundirían la media)
-    resultados.filter((r) => r.origen !== "repaso").forEach((r) => {
-      Object.entries(r.por_tema || {}).forEach(([tid, v]) => {
-        if (!map[tid]) map[tid] = { ok: 0, total: 0, tests: 0 };
-        map[tid].ok += v.ok; map[tid].total += v.total; map[tid].tests += 1;
-      });
-    });
-    return map;
-  }, [temas, resultados]);
 
   /* ---- pantalla de login ---- */
   if (user === undefined) return <Centro texto="Comprobando sesión…" />;
@@ -136,7 +97,7 @@ export default function App() {
               <span style={{ color: C.red }}>Opo</span> Bombero<br /><span style={{ color: C.yellow }}>Zaragoza</span>
             </h1>
             <p style={{ color: "#9AA3AA", fontSize: 16, margin: "16px 0 28px" }}>
-              Entreno, estudio, marcas y tests con IA.<br />Tu parte de servicio diario hasta la plaza.
+              El temario oficial en 27.425 preguntas, con tu avance tema a tema.<br />Tu parte de servicio diario hasta la plaza.
             </p>
             <button
               onClick={loginGoogle}
@@ -184,7 +145,7 @@ export default function App() {
       </header>
       <div style={hazard(8)} />
       <nav style={{ maxWidth: 1000, margin: "0 auto", display: "flex", gap: 6, padding: "14px 16px 0", flexWrap: "wrap" }}>
-        {[["panel", "Panel"], ["tests", "Temario y tests"], ["fisico", "Marcas físicas"], ["diario", "Diario"]].map(([id, label]) => (
+        {[["panel", "Panel"], ["tests", "Temario y tests"], ["fisico", "Pruebas físicas"]].map(([id, label]) => (
           <button key={id} onClick={() => setTab(id)}
             style={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 16, letterSpacing: 1, textTransform: "uppercase", padding: "8px 18px", border: `2px solid ${C.ink}`, background: tab === id ? C.ink : "transparent", color: tab === id ? C.yellow : C.ink, borderRadius: 4 }}>
             {label}
@@ -192,76 +153,36 @@ export default function App() {
         ))}
       </nav>
       <main style={{ maxWidth: 1000, margin: "0 auto", padding: "18px 16px 60px" }}>
-        {tab === "panel" && <Panel temas={temas} statsTema={statsTema} resultados={resultados} marcas={marcas} objetivos={objetivos} diario={diario} />}
-        {tab === "tests" && <Tests user={user} temas={temas} setTemas={setTemas} resultados={resultados} setResultados={setResultados} statsTema={statsTema} subtemas={subtemas} setSubtemas={setSubtemas} preguntas={preguntas} setPreguntas={setPreguntas} />}
-        {tab === "fisico" && <Fisico user={user} marcas={marcas} setMarcas={setMarcas} objetivos={objetivos} setObjetivos={setObjetivos} />}
-        {tab === "diario" && <Diario user={user} diario={diario} setDiario={setDiario} />}
+        {tab === "panel" && <Panel progreso={progreso} resultados={resultados} irATemario={() => setTab("tests")} />}
+        {tab === "tests" && <Temario user={user} progreso={progreso} setProgreso={setProgreso} resultados={resultados} setResultados={setResultados} />}
+        {tab === "fisico" && <FisicoProximamente />}
       </main>
     </div>
   );
 }
 
-/* ============ base ============ */
-function Centro({ texto }) {
-  return <div style={{ minHeight: "100vh", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: FONT_BODY, color: C.inkSoft }}>{texto}</div>;
-}
-function Card({ children, style }) {
-  return <section style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 6, padding: 18, ...style }}>{children}</section>;
-}
-function H2({ children }) {
-  return (
-    <h2 style={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 20, letterSpacing: 1, textTransform: "uppercase", margin: "0 0 12px", display: "flex", alignItems: "center", gap: 8 }}>
-      <span style={{ width: 14, height: 14, background: C.red, display: "inline-block" }} />{children}
-    </h2>
-  );
-}
-function StripeBar({ pct, color = C.red }) {
-  const p = Math.max(0, Math.min(100, pct || 0));
-  return (
-    <div style={{ background: "#E3E6E8", borderRadius: 3, height: 14, overflow: "hidden", border: `1px solid ${C.line}` }}>
-      <div style={{ width: `${p}%`, height: "100%", background: `repeating-linear-gradient(135deg, ${color} 0 10px, ${C.ink} 10px 20px)`, transition: "width .3s" }} />
-    </div>
-  );
-}
-function Vacio({ texto }) {
-  return <p style={{ color: C.inkSoft, fontSize: 14, margin: 0, padding: "6px 0" }}>{texto}</p>;
-}
-const inputStyle = { padding: "8px 10px", border: `1px solid ${C.line}`, borderRadius: 4, fontSize: 14, background: "#fff", color: C.ink, fontFamily: FONT_BODY };
-const btnStyle = (bg = C.red, fg = "#fff") => ({
-  fontFamily: FONT_DISPLAY, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase",
-  background: bg, color: fg, border: "none", borderRadius: 4, padding: "9px 18px", fontSize: 15,
-});
-
 /* ============ PANEL ============ */
-function Panel({ temas, statsTema, resultados, marcas, objetivos, diario }) {
-  const last7 = [...Array(7)].map((_, i) => { const d = new Date(); d.setDate(d.getDate() - i); return d.toISOString().slice(0, 10); });
-  const entrenosSemana = last7.filter((d) => diario[d]?.entreno && !diario[d].entreno.startsWith("Descanso")).length;
-  const horasEstudio = last7.reduce((a, d) => a + (parseFloat(diario[d]?.estudio) || 0), 0);
-  const suenos = last7.map((d) => parseFloat(diario[d]?.sueno)).filter((v) => !isNaN(v));
-  const mediaSueno = suenos.length ? suenos.reduce((a, b) => a + b, 0) / suenos.length : null;
-
+function Panel({ progreso, resultados, irATemario }) {
+  // Todo sale de lo que ya registra la app: tests hechos y progreso por pregunta (nada a mano)
+  const diasConEstudio = new Set([
+    ...resultados.map((r) => String(r.fecha)),
+    ...Object.values(progreso).map((p) => String(p.ultima_fecha)),
+  ]);
   let racha = 0;
   for (let i = 0; i <= 400; i++) {
-    const d = new Date(); d.setDate(d.getDate() - i);
-    const e = diario[d.toISOString().slice(0, 10)];
-    if (e && (e.entreno || parseFloat(e.estudio) > 0)) racha++;
-    else if (i === 0) continue;
+    if (diasConEstudio.has(fechaLocal(-i))) racha++;
+    else if (i === 0) continue; // hoy aún no has estudiado: la racha de ayer sigue viva
     else break;
   }
+  const hace7 = fechaLocal(-6);
+  const preguntasSemana = Object.values(progreso).filter((p) => p.ultima_fecha && String(p.ultima_fecha) >= hace7).length;
+  const sg = statsDe(Object.keys(bloquePorId), statsBloques(progreso));
+  const pctDominado = sg.total ? (100 * sg.dominadas) / sg.total : 0;
 
-  const conDatos = temas
-    .map((t) => ({ ...t, s: statsTema[t.id] }))
-    .filter((t) => t.s && t.s.total > 0)
-    .map((t) => ({ ...t, pct: Math.round((t.s.ok / t.s.total) * 100) }))
-    .sort((a, b) => a.pct - b.pct);
-
-  const resumenMarcas = PRUEBAS.map((p) => {
-    const entries = marcas.filter((e) => e.prueba === p.id).sort((a, b) => String(a.fecha).localeCompare(String(b.fecha)));
-    const last = entries[entries.length - 1];
-    const obj = objetivos[p.id] ?? p.defObj;
-    const pct = last ? (p.mejor === "mayor" ? (Number(last.valor) / obj) * 100 : (obj / Number(last.valor)) * 100) : null;
-    return { ...p, last, obj, pct };
-  });
+  // Temas empezados con peor acierto: los que piden refuerzo
+  const estadoTemas = useEstadoTemas(progreso);
+  const conDatos = estadoTemas.filter((t) => t.s.vistas > 0).sort((a, b) => a.e.acierto - b.e.acierto || a.e.pct - b.e.pct);
+  const sinEmpezar = estadoTemas.filter((t) => t.s.vistas === 0).length;
 
   const soloTests = resultados.filter((r) => r.origen !== "repaso");
   const mediaGlobal = (() => {
@@ -270,19 +191,14 @@ function Panel({ temas, statsTema, resultados, marcas, objetivos, diario }) {
     return tot ? Math.round((ok / tot) * 100) : null;
   })();
 
-  // Nota física proyectada según baremo oficial (mejor marca de cada prueba oficial)
-  const notaFisica = notaFisicaProyectada(marcas);
-
   return (
     <div style={{ display: "grid", gap: 14 }}>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10 }}>
         {[
-          { label: "Racha activa", value: `${racha} d`, color: C.red },
-          { label: "Entrenos / 7 días", value: `${entrenosSemana} / 6`, color: C.steel },
-          { label: "Estudio / 7 días", value: `${horasEstudio.toFixed(1)} h`, color: C.steel },
-          { label: "Sueño medio", value: mediaSueno ? `${mediaSueno.toFixed(1)} h` : "—", color: mediaSueno && mediaSueno < 7 ? C.red : C.green },
+          { label: "Racha de estudio", value: `${racha} d`, color: C.red },
+          { label: "Preguntas / 7 días", value: preguntasSemana.toLocaleString("es-ES"), color: C.steel },
+          { label: "Temario dominado", value: `${pctDominado.toFixed(pctDominado < 10 ? 1 : 0).replace(".", ",")} %`, color: C.steel },
           { label: "Media tests", value: mediaGlobal != null ? `${mediaGlobal}%` : "—", color: C.ink },
-          { label: `Nota física (${notaFisica.pruebasConDatos}/4 pruebas)`, value: notaFisica.media != null ? notaFisica.media.toFixed(2).replace(".", ",") : "—", color: notaFisica.algunNoApto ? C.red : notaFisica.media >= 8 ? C.green : C.steel },
         ].map((s) => (
           <Card key={s.label} style={{ padding: 14, borderTop: `4px solid ${s.color}` }}>
             <div style={{ fontSize: 11, letterSpacing: 1, textTransform: "uppercase", color: C.inkSoft }}>{s.label}</div>
@@ -291,39 +207,25 @@ function Panel({ temas, statsTema, resultados, marcas, objetivos, diario }) {
         ))}
       </div>
 
-      <Card>
-        <H2>Estado de las pruebas físicas</H2>
-        {marcas.length === 0 ? (
-          <Vacio texto="Aún no hay marcas registradas. Ve a «Marcas físicas» y apunta tu primer test de cada prueba: esa será tu línea de salida." />
-        ) : (
-          <div style={{ display: "grid", gap: 10 }}>
-            {resumenMarcas.filter((p) => p.last).map((p) => (
-              <div key={p.id} style={{ display: "grid", gridTemplateColumns: "150px 1fr 130px", gap: 10, alignItems: "center" }}>
-                <div style={{ fontWeight: 600, fontSize: 14 }}>{p.nombre}</div>
-                <StripeBar pct={p.pct} color={p.pct >= 100 ? C.green : p.pct >= 80 ? C.yellow : C.red} />
-                <div style={{ fontSize: 13, color: C.inkSoft, textAlign: "right" }}>
-                  {p.tipo === "tiempo" ? fmtTime(Number(p.last.valor)) : Number(p.last.valor)} / obj. {p.tipo === "tiempo" ? fmtTime(p.obj) : p.obj}
-                  {(() => { const pts = puntosBaremo(p.id, Number(p.last.valor)); const f = fmtPuntos(pts); return f ? <strong style={{ color: pts === 0 ? C.red : pts >= 8 ? C.green : C.ink, marginLeft: 6 }}>· {f}</strong> : null; })()}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
-
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 14 }}>
         <Card>
           <H2>Temas que piden refuerzo</H2>
           {conDatos.length === 0 ? (
-            <Vacio texto="Sin tests todavía. Sube tu primer tema en «Temario y tests» y genera un examen para empezar a medir." />
+            <Vacio texto="Sin tests todavía. Ve a «Temario y tests» y haz tu primer test: las bolitas de cada tema se irán coloreando." />
           ) : (
-            conDatos.slice(0, 5).map((t) => (
-              <div key={t.id} style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: `1px solid ${C.line}`, fontSize: 14 }}>
-                <span>{t.nombre}</span>
-                <strong style={{ color: t.pct < 60 ? C.red : t.pct < 80 ? "#B07F00" : C.green }}>{t.pct}%</strong>
-              </div>
-            ))
+            <>
+              {conDatos.slice(0, 5).map((t) => (
+                <div key={t.n} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 0", borderBottom: `1px solid ${C.line}`, fontSize: 14 }}>
+                  <Bolita e={t.e} />
+                  <span style={{ flex: 1 }}>Tema {t.n} · {t.titulo}</span>
+                  <span style={{ color: C.inkSoft, fontSize: 12 }}>acierto {t.e.acierto} %</span>
+                  <strong>{t.e.pct} %</strong>
+                </div>
+              ))}
+              {sinEmpezar > 0 && <p style={{ fontSize: 12, color: C.inkSoft, margin: "8px 0 0" }}>{sinEmpezar} tema{sinEmpezar > 1 ? "s" : ""} sin empezar.</p>}
+            </>
           )}
+          <button onClick={irATemario} style={{ ...btnStyle(C.ink, C.yellow), marginTop: 10, fontSize: 13, padding: "6px 12px" }}>Ir al temario</button>
         </Card>
         <Card>
           <H2>Evolución global en tests</H2>
@@ -347,424 +249,69 @@ function Panel({ temas, statsTema, resultados, marcas, objetivos, diario }) {
   );
 }
 
-/* ============ TEMARIO Y TESTS ============ */
-/* ============ TEMARIO Y TESTS ============ */
-function Tests({ user, temas, setTemas, resultados, setResultados, statsTema, subtemas, setSubtemas, preguntas, setPreguntas }) {
-  const [nuevoNombre, setNuevoNombre] = useState("");
-  const [nuevoContenido, setNuevoContenido] = useState("");
-  const [verTema, setVerTema] = useState(null);
-  const [selTema, setSelTema] = useState("");
-  const [nPreg, setNPreg] = useState(10);
-  const [generando, setGenerando] = useState(false);
-  const [mapeando, setMapeando] = useState(false);
-  const [error, setError] = useState("");
-  const [quiz, setQuiz] = useState(null);
-  const [verSubtemas, setVerSubtemas] = useState(null);
+/* ============ PRUEBAS FÍSICAS · próximamente ============ */
+// La sección se está rehaciendo (plan de entrenamiento con objetivo de 10 en
+// 1.500 m, natación 100 m y cuerda 6 m). Mientras tanto, la pestaña lo anuncia.
+// El componente Fisico de abajo se conserva como base y no se muestra.
+const PRUEBAS_10 = [
+  { nombre: "1.500 m", marca: "< 4:28", nota: "Carrera", color: C.red },
+  { nombre: "Natación 100 m", marca: "< 1:00", nota: "Piscina", color: C.steel },
+  { nombre: "Cuerda 6 m", marca: "≤ 5,00 s", nota: "Trepa", color: C.yellow },
+];
+const LO_QUE_LLEGA = [
+  ["Plan hasta el examen", "El entrenamiento del día y los tiempos que deberías hacer, semana a semana."],
+  ["Registro en un toque", "Apunta lo que hiciste hoy sin rellenar formularios."],
+  ["Tests de control", "Cada 3-4 semanas, con tus puntos del baremo oficial."],
+  ["Strava (opcional)", "Que las carreras y la piscina lleguen solas."],
+];
 
-  // ---- añadir tema + mapear sus subtemas ----
-  const addTema = async () => {
-    if (!nuevoNombre.trim() || !nuevoContenido.trim()) return;
-    setMapeando(true); setError("");
-    try {
-      const t = await dbAddTema(nuevoNombre.trim(), nuevoContenido, user.id);
-      if (t) {
-        setTemas([...temas, t]);
-        setNuevoNombre(""); setNuevoContenido("");
-        // mapear subtemas (una llamada barata)
-        try {
-          const subs = await mapTema(t.id, t.nombre, t.contenido);
-          setSubtemas([...subtemas, ...subs]);
-        } catch (e) {
-          setError("Tema añadido, pero no se pudo generar el mapa de subtemas. Puedes reintentarlo con el botón «Mapear».");
-        }
-      }
-    } finally {
-      setMapeando(false);
-    }
-  };
-  const remapear = async (t) => {
-    setMapeando(true); setError("");
-    try {
-      const subs = await mapTema(t.id, t.nombre, t.contenido);
-      setSubtemas([...subtemas.filter((s) => s.tema_id !== t.id), ...subs]);
-    } catch (e) {
-      setError("No se pudo mapear el tema.");
-    } finally {
-      setMapeando(false);
-    }
-  };
-  const delTema = async (id) => {
-    const t = temas.find((x) => x.id === id);
-    const nPreg = preguntas.filter((p) => p.tema_id === id).length;
-    const ok = window.confirm(
-      `¿Borrar «${t?.nombre || "este tema"}»?\n\nSe eliminarán también sus subtemas y ${nPreg} pregunta${nPreg === 1 ? "" : "s"} del banco. Esta acción no se puede deshacer.`
-    );
-    if (!ok) return;
-    await dbDelTema(id);
-    setTemas(temas.filter((t) => t.id !== id));
-    setSubtemas(subtemas.filter((s) => s.tema_id !== id));
-    setPreguntas(preguntas.filter((p) => p.tema_id !== id));
-  };
-
-  // ---- generar test (con guardado en banco) ----
-  async function generar(opts = {}) {
-    setError("");
-    const { modo = "normal", objetivos = null, temaId = null } = opts;
-    const pool = temaId ? temas.filter((t) => t.id === temaId)
-      : selTema === "MIX" ? temas : temas.filter((t) => t.id === selTema);
-    if (pool.length === 0) { setError("Selecciona un tema (o sube uno primero)."); return; }
-    setGenerando(true);
-    try {
-      const subtemasPorTema = {};
-      pool.forEach((t) => { subtemasPorTema[t.id] = subtemas.filter((s) => s.tema_id === t.id).map((s) => s.etiqueta); });
-      // evitar repetir enunciados ya existentes de los temas implicados
-      const evitarEnunciados = preguntas.filter((p) => pool.some((t) => t.id === p.tema_id)).map((p) => p.enunciado);
-      const resp = await fetch("/api/generate-test", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          temas: pool.map(({ id, nombre, contenido }) => ({ id, nombre, contenido })),
-          nPreguntas: nPreg, subtemasPorTema, modo, objetivos, evitarEnunciados,
-        }),
-      });
-      const data = await resp.json();
-      if (!resp.ok) throw new Error(data.error || "error");
-      const conModelo = data.preguntas.map((p) => ({ ...p, modelo: data.modelo }));
-      const guardadas = await guardarPreguntas(conModelo, user.id);
-      if (guardadas.length) setPreguntas([...preguntas, ...guardadas]);
-      const quizPreg = guardadas.length ? guardadas.map((g) => ({
-        id: g.id, pregunta: g.enunciado, opciones: g.opciones, correcta: g.correcta,
-        explicacion: g.explicacion, tema_id: g.tema_id, subtema: g.subtema,
-        veces_vista: g.veces_vista, veces_acierto: g.veces_acierto,
-      })) : data.preguntas;
-      setQuiz({ preguntas: quizPreg, idx: 0, respuestas: [], mostrado: false, modelo: data.modelo, origen: modo === "nota" ? "nota" : "nuevo" });
-    } catch (e) {
-      setError(e.message === "error" ? "No se pudo generar el test. Inténtalo de nuevo." : e.message);
-    }
-    setGenerando(false);
-  }
-
-  // ---- repasar fallos (sin coste de API) ----
-  // temaId opcional: si viene, filtra por ese tema (no depende del estado selTema,
-  // que es asíncrono y provocaba repasar el tema equivocado desde el veredicto)
-  function repasarFallos(temaId = null) {
-    setError("");
-    const filtro = temaId || (selTema && selTema !== "MIX" ? selTema : null);
-    let pool = preguntas.filter((p) => p.ultimo_resultado === false);
-    if (filtro) pool = pool.filter((p) => p.tema_id === filtro);
-    if (pool.length === 0) { setError("No tienes preguntas falladas pendientes" + (filtro ? " en este tema." : ".")); return; }
-    const muestra = [...pool].sort(() => Math.random() - 0.5).slice(0, 20).map((g) => ({
-      id: g.id, pregunta: g.enunciado, opciones: g.opciones, correcta: g.correcta,
-      explicacion: g.explicacion, tema_id: g.tema_id, subtema: g.subtema,
-      veces_vista: g.veces_vista, veces_acierto: g.veces_acierto,
-    }));
-    setQuiz({ preguntas: muestra, idx: 0, respuestas: [], mostrado: false, origen: "repaso" });
-  }
-
-  function responder(i) {
-    if (quiz.mostrado) return;
-    setQuiz({ ...quiz, respuestas: [...quiz.respuestas, i], mostrado: true });
-  }
-
-  async function siguiente() {
-    // actualizar repaso de la pregunta actual en BD
-    const p = quiz.preguntas[quiz.idx];
-    const acertada = quiz.respuestas[quiz.idx] === p.correcta;
-    if (p.id) {
-      const vista = (p.veces_vista || 0) + 1;
-      const aciertos = (p.veces_acierto || 0) + (acertada ? 1 : 0);
-      actualizarRepaso(p.id, acertada, vista, aciertos);
-      setPreguntas((prev) => prev.map((x) => x.id === p.id ? { ...x, veces_vista: vista, veces_acierto: aciertos, ultimo_resultado: acertada, ultima_fecha: hoy() } : x));
-    }
-
-    if (quiz.idx + 1 >= quiz.preguntas.length) {
-      const por_tema = {};
-      quiz.preguntas.forEach((q, i) => {
-        const tid = q.tema_id || selTema;
-        if (!por_tema[tid]) por_tema[tid] = { ok: 0, total: 0 };
-        por_tema[tid].total++;
-        if (quiz.respuestas[i] === q.correcta) por_tema[tid].ok++;
-      });
-      const aciertos = quiz.preguntas.filter((q, i) => quiz.respuestas[i] === q.correcta).length;
-      const r = await addResultado({ fecha: hoy(), preguntas: quiz.preguntas.length, aciertos, por_tema, origen: quiz.origen === "repaso" ? "repaso" : "test" }, user.id);
-      if (r) setResultados([...resultados, r]);
-      setQuiz({ ...quiz, terminado: true, aciertos });
-    } else {
-      setQuiz({ ...quiz, idx: quiz.idx + 1, mostrado: false });
-    }
-  }
-
-  const barData = temas
-    .map((t) => {
-      const s = statsTema[t.id];
-      return s && s.total > 0 ? { nombre: t.nombre.length > 14 ? t.nombre.slice(0, 13) + "…" : t.nombre, pct: Math.round((s.ok / s.total) * 100) } : null;
-    })
-    .filter(Boolean);
-
-  const totalFallos = preguntas.filter((p) => p.ultimo_resultado === false).length;
-
-  // ---- desglose por subtema de un tema ----
-  function statsSubtemas(temaId) {
-    const subs = subtemas.filter((s) => s.tema_id === temaId).sort((a, b) => a.orden - b.orden);
-    const preg = preguntas.filter((p) => p.tema_id === temaId);
-    return subs.map((s) => {
-      const ps = preg.filter((p) => (p.subtema || "").trim().toLowerCase() === s.etiqueta.trim().toLowerCase());
-      const vistas = ps.filter((p) => p.veces_vista > 0);
-      const totalIntentos = vistas.reduce((a, p) => a + p.veces_vista, 0);
-      const totalAciertos = vistas.reduce((a, p) => a + p.veces_acierto, 0);
-      const pct = totalIntentos ? Math.round((totalAciertos / totalIntentos) * 100) : null;
-      let estado = "gris"; // nunca preguntado
-      if (totalIntentos > 0) estado = pct >= 80 ? "verde" : pct >= 60 ? "ambar" : "rojo";
-      return { etiqueta: s.etiqueta, pct, estado, nPreg: ps.length, intentos: totalIntentos };
-    });
-  }
-
-  // ---- veredicto de acción por tema (la lógica de cuándo generar / repasar / ir a por nota) ----
-  function veredictoTema(temaId) {
-    const ds = statsSubtemas(temaId);
-    if (ds.length === 0) return { tipo: "sinmapa" };
-    const grises = ds.filter((d) => d.estado === "gris");
-    const malos = ds.filter((d) => d.estado === "rojo" || d.estado === "ambar");
-    const fallosBanco = preguntas.filter((p) => p.tema_id === temaId && p.ultimo_resultado === false).length;
-
-    // 1) Grises = puntos ciegos: hay que cubrirlos sí o sí
-    if (grises.length > 0) {
-      return {
-        tipo: "huecos",
-        objetivos: grises.map((g) => g.etiqueta),
-        msg: `${grises.length} subtema${grises.length > 1 ? "s" : ""} sin preguntar. Cúbrelos antes de nada.`,
-        color: "#6B7177",
-      };
-    }
-    // 2) Cobertura completa pero fallas cosas: repasar, no generar
-    if (malos.length > 0 || fallosBanco > 0) {
-      return {
-        tipo: "repaso",
-        msg: `Cobertura completa, pero aún fallas ${malos.length || fallosBanco} punto${(malos.length || fallosBanco) > 1 ? "s" : ""}. Repasa lo que ya tienes antes de generar más.`,
-        color: C.red,
-        fallos: fallosBanco,
-      };
-    }
-    // 3) Todo verde: a por nota
-    return {
-      tipo: "nota",
-      msg: "Tema dominado. Sube el nivel: genera preguntas difíciles para ir a por nota.",
-      color: C.green,
-    };
-  }
-
-  // ====== render quiz en curso ======
-  if (quiz && !quiz.terminado) {
-    const p = quiz.preguntas[quiz.idx];
-    const elegida = quiz.respuestas[quiz.idx];
-    return (
-      <Card>
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10, fontSize: 13, color: C.inkSoft }}>
-          <span>{quiz.origen === "repaso" ? "REPASO DE FALLOS · " : quiz.origen === "nota" ? "MODO NOTA (difícil) · " : ""}Pregunta {quiz.idx + 1} de {quiz.preguntas.length}</span>
-          <span>Aciertos: {quiz.preguntas.slice(0, quiz.idx).filter((q, i) => quiz.respuestas[i] === q.correcta).length}</span>
-        </div>
-        <StripeBar pct={(quiz.idx / quiz.preguntas.length) * 100} color={C.steel} />
-        {p.subtema && <div style={{ marginTop: 12, fontSize: 11, letterSpacing: 0.5, textTransform: "uppercase", color: C.steel, fontWeight: 600 }}>{p.subtema}</div>}
-        <h3 style={{ fontSize: 17, margin: "6px 0 12px", lineHeight: 1.4 }}>{p.pregunta}</h3>
-        <div style={{ display: "grid", gap: 8 }}>
-          {p.opciones.map((op, i) => {
-            let bg = "#fff", bd = C.line;
-            if (quiz.mostrado) {
-              if (i === p.correcta) { bg = "#E6F2EA"; bd = C.green; }
-              else if (i === elegida) { bg = "#FBE9E7"; bd = C.red; }
-            }
-            return (
-              <button key={i} onClick={() => responder(i)}
-                style={{ textAlign: "left", padding: "11px 14px", border: `2px solid ${bd}`, borderRadius: 5, background: bg, fontSize: 15, lineHeight: 1.35, color: C.ink, fontFamily: FONT_BODY }}>
-                <strong style={{ fontFamily: FONT_DISPLAY, marginRight: 8 }}>{"ABCD"[i]}</strong>{op}
-              </button>
-            );
-          })}
-        </div>
-        {quiz.mostrado && (
-          <div style={{ marginTop: 14 }}>
-            <p style={{ background: "#F4F6F7", borderLeft: `4px solid ${C.steel}`, padding: "10px 12px", fontSize: 14, margin: "0 0 12px" }}>{p.explicacion}</p>
-            <button onClick={siguiente} style={btnStyle()}>{quiz.idx + 1 >= quiz.preguntas.length ? "Ver resultado" : "Siguiente"}</button>
-          </div>
-        )}
-        <button onClick={() => setQuiz(null)} style={{ ...btnStyle("transparent", C.inkSoft), border: `1px solid ${C.line}`, marginTop: 14, fontSize: 12, padding: "6px 12px" }}>
-          Abandonar test
-        </button>
-      </Card>
-    );
-  }
-
-  if (quiz && quiz.terminado) {
-    const pct = Math.round((quiz.aciertos / quiz.preguntas.length) * 100);
-    return (
-      <Card style={{ textAlign: "center", borderTop: `6px solid ${pct >= 80 ? C.green : pct >= 60 ? C.yellow : C.red}` }}>
-        <div style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 64 }}>{pct}%</div>
-        <p style={{ fontSize: 16, margin: "4px 0 6px" }}>{quiz.aciertos} de {quiz.preguntas.length} aciertos · guardado</p>
-        {quiz.modelo && <p style={{ fontSize: 12, color: C.inkSoft, margin: "0 0 18px" }}>Generado con {quiz.modelo}</p>}
-        <button onClick={() => setQuiz(null)} style={btnStyle()}>Volver al temario</button>
-      </Card>
-    );
-  }
-
+function FisicoProximamente() {
   return (
     <div style={{ display: "grid", gap: 14 }}>
-      <Card>
-        <H2>Generar test</H2>
-        {temas.length === 0 ? (
-          <Vacio texto="Primero sube al menos un tema más abajo. Cuando tengas el temario oficial, pega el contenido de cada tema y la aplicación generará exámenes de él." />
-        ) : (
-          <>
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-              <select value={selTema} onChange={(e) => setSelTema(e.target.value)} style={{ ...inputStyle, minWidth: 220 }}>
-                <option value="">Elige tema…</option>
-                <option value="MIX">EXAMEN MIXTO (todos los temas)</option>
-                {temas.map((t) => <option key={t.id} value={t.id}>{t.nombre}</option>)}
-              </select>
-              <select value={nPreg} onChange={(e) => setNPreg(+e.target.value)} style={inputStyle}>
-                {[5, 10, 15, 20].map((n) => <option key={n} value={n}>{n} preguntas</option>)}
-              </select>
-              <button onClick={() => generar()} disabled={generando} style={{ ...btnStyle(), opacity: generando ? 0.6 : 1 }}>
-                {generando ? "Generando…" : "Generar test (IA)"}
-              </button>
-              <button onClick={() => repasarFallos()} disabled={totalFallos === 0} style={{ ...btnStyle(C.steel), opacity: totalFallos === 0 ? 0.45 : 1 }}>
-                Repasar fallos ({totalFallos})
-              </button>
-            </div>
-            <p style={{ fontSize: 12, color: C.inkSoft, marginTop: 8 }}>
-              «Generar test» crea preguntas nuevas con IA (tiene coste y cuenta para el límite diario). «Repasar fallos» reutiliza preguntas ya generadas que fallaste: gratis e ilimitado.
-            </p>
-          </>
-        )}
-        {error && <p style={{ color: C.red, fontSize: 14, marginTop: 10 }}>{error}</p>}
-      </Card>
+      <section style={{ background: C.ink, color: "#fff", borderRadius: 6, overflow: "hidden" }}>
+        <div style={hazard(10)} />
+        <div style={{ padding: "22px 22px 24px" }}>
+          <span style={{ display: "inline-block", fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 13, letterSpacing: 2, textTransform: "uppercase", background: C.yellow, color: C.ink, padding: "3px 10px", borderRadius: 3 }}>
+            Próximamente
+          </span>
+          <h2 style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 38, letterSpacing: 1.5, textTransform: "uppercase", margin: "12px 0 6px", lineHeight: 1 }}>
+            Pruebas <span style={{ color: C.yellow }}>físicas</span>
+          </h2>
+          <p style={{ color: "#C8CED3", fontSize: 15, margin: 0, maxWidth: 560, lineHeight: 1.5 }}>
+            Estamos rehaciendo esta sección. El objetivo será siempre el <strong style={{ color: "#fff" }}>10</strong> en cada prueba y la aplicación te dirá qué entrenar cada día.
+          </p>
+        </div>
+      </section>
 
-      {barData.length > 0 && (
-        <Card>
-          <H2>Rendimiento por tema</H2>
-          <ResponsiveContainer width="100%" height={Math.max(160, barData.length * 42)}>
-            <BarChart data={barData} layout="vertical" margin={{ left: 10, right: 30 }}>
-              <CartesianGrid stroke={C.line} strokeDasharray="3 3" horizontal={false} />
-              <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 11 }} />
-              <YAxis type="category" dataKey="nombre" width={120} tick={{ fontSize: 12 }} />
-              <Tooltip formatter={(v) => `${v}%`} />
-              <ReferenceLine x={80} stroke={C.green} strokeDasharray="4 4" />
-              <Bar dataKey="pct" radius={[0, 3, 3, 0]}>
-                {barData.map((d, i) => <Cell key={i} fill={d.pct >= 80 ? C.green : d.pct >= 60 ? C.yellow : C.red} />)}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </Card>
-      )}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}>
+        {PRUEBAS_10.map((p) => (
+          <Card key={p.nombre} style={{ padding: 14, borderTop: `4px solid ${p.color}` }}>
+            <div style={{ fontSize: 11, letterSpacing: 1, textTransform: "uppercase", color: C.inkSoft }}>{p.nota} · {p.nombre}</div>
+            <div style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 32, lineHeight: 1.1, marginTop: 4 }}>{p.marca}</div>
+            <div style={{ fontSize: 12, color: C.inkSoft }}>marca para el 10</div>
+          </Card>
+        ))}
+      </div>
 
       <Card>
-        <H2>Mi temario ({temas.length} temas)</H2>
-        {temas.map((t) => {
-          const s = statsTema[t.id];
-          const pct = s && s.total ? Math.round((s.ok / s.total) * 100) : null;
-          const nSub = subtemas.filter((x) => x.tema_id === t.id).length;
-          const abierto = verSubtemas === t.id;
-          const desglose = abierto ? statsSubtemas(t.id) : [];
-          return (
-            <div key={t.id} style={{ borderBottom: `1px solid ${C.line}`, padding: "10px 0" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                <strong style={{ fontSize: 15 }}>{t.nombre}</strong>
-                <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                  <span style={{ fontSize: 12, color: C.inkSoft }}>
-                    {s && s.total ? `${pct}% acierto` : "sin tests"} · {nSub} subtemas · {(t.contenido.length / 1000).toFixed(1)}k car.
-                  </span>
-                  <button onClick={() => setVerSubtemas(abierto ? null : t.id)} style={{ ...btnStyle(C.steel), padding: "4px 10px", fontSize: 12 }}>
-                    {abierto ? "Cerrar" : "Subtemas"}
-                  </button>
-                  {nSub === 0 && <button onClick={() => remapear(t)} disabled={mapeando} style={{ ...btnStyle(C.ink, C.yellow), padding: "4px 10px", fontSize: 12 }}>Mapear</button>}
-                  <button onClick={() => setVerTema(verTema === t.id ? null : t.id)} style={{ ...btnStyle("transparent", C.inkSoft), border: `1px solid ${C.line}`, padding: "4px 10px", fontSize: 12 }}>
-                    {verTema === t.id ? "Ocultar texto" : "Ver texto"}
-                  </button>
-                  <button onClick={() => delTema(t.id)} style={{ ...btnStyle("transparent", C.red), border: `1px solid ${C.red}`, padding: "4px 10px", fontSize: 12 }}>
-                    Borrar
-                  </button>
-                </div>
+        <H2>Lo que llega</H2>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+          {LO_QUE_LLEGA.map(([t, d], i) => (
+            <div key={t} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+              <span style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 16, minWidth: 28, height: 28, borderRadius: 4, background: C.ink, color: C.yellow, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>{i + 1}</span>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 14 }}>{t}</div>
+                <div style={{ fontSize: 13, color: C.inkSoft, lineHeight: 1.45 }}>{d}</div>
               </div>
-
-              {abierto && (
-                <div style={{ marginTop: 10, background: "#F7F8F9", borderRadius: 5, padding: 12 }}>
-                  {desglose.length === 0 ? (
-                    <Vacio texto="Este tema aún no tiene mapa de subtemas. Pulsa «Mapear»." />
-                  ) : (
-                    <>
-                      <div style={{ display: "flex", gap: 14, fontSize: 11, color: C.inkSoft, marginBottom: 10, flexWrap: "wrap" }}>
-                        <Leyenda color={C.green} t="dominado (≥80%)" />
-                        <Leyenda color={C.yellow} t="flojo (60-79%)" />
-                        <Leyenda color={C.red} t="mal (<60%)" />
-                        <Leyenda color="#C2C8CD" t="nunca preguntado" />
-                      </div>
-                      <div style={{ display: "grid", gap: 6 }}>
-                        {desglose.map((d, i) => {
-                          const col = d.estado === "verde" ? C.green : d.estado === "ambar" ? C.yellow : d.estado === "rojo" ? C.red : "#C2C8CD";
-                          return (
-                            <div key={i} style={{ display: "grid", gridTemplateColumns: "10px 1fr auto", gap: 10, alignItems: "center", fontSize: 13 }}>
-                              <span style={{ width: 10, height: 10, borderRadius: 2, background: col }} />
-                              <span style={{ color: d.estado === "gris" ? C.inkSoft : C.ink }}>{d.etiqueta}</span>
-                              <span style={{ color: C.inkSoft, fontSize: 12 }}>
-                                {d.estado === "gris" ? "— sin preguntar" : `${d.pct}% · ${d.intentos} int.`}
-                              </span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                      {(() => {
-                        const v = veredictoTema(t.id);
-                        if (v.tipo === "sinmapa") return null;
-                        return (
-                          <div style={{ marginTop: 12, borderTop: `1px solid ${C.line}`, paddingTop: 12, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                            <span style={{ width: 12, height: 12, borderRadius: 3, background: v.color, flexShrink: 0 }} />
-                            <span style={{ fontSize: 13, color: C.ink, flex: 1, minWidth: 180 }}>{v.msg}</span>
-                            {v.tipo === "huecos" && (
-                              <button onClick={() => generar({ modo: "huecos", objetivos: v.objetivos, temaId: t.id })} disabled={generando} style={{ ...btnStyle(C.ink, C.yellow), fontSize: 12, padding: "7px 12px", opacity: generando ? 0.6 : 1 }}>
-                                {generando ? "Generando…" : "Cubrir huecos (IA)"}
-                              </button>
-                            )}
-                            {v.tipo === "repaso" && v.fallos > 0 && (
-                              <button onClick={() => repasarFallos(t.id)} style={{ ...btnStyle(C.red), fontSize: 12, padding: "7px 12px" }}>
-                                Repasar fallos ({v.fallos})
-                              </button>
-                            )}
-                            {v.tipo === "nota" && (
-                              <button onClick={() => generar({ modo: "nota", temaId: t.id })} disabled={generando} style={{ ...btnStyle(C.green), fontSize: 12, padding: "7px 12px", opacity: generando ? 0.6 : 1 }}>
-                                {generando ? "Generando…" : "Ir a por nota (IA)"}
-                              </button>
-                            )}
-                          </div>
-                        );
-                      })()}
-                    </>
-                  )}
-                </div>
-              )}
-
-              {verTema === t.id && (
-                <p style={{ fontSize: 13, color: C.inkSoft, maxHeight: 160, overflow: "auto", background: "#F7F8F9", padding: 10, borderRadius: 4, whiteSpace: "pre-wrap", marginTop: 8 }}>
-                  {t.contenido.slice(0, 3000)}{t.contenido.length > 3000 ? "…" : ""}
-                </p>
-              )}
             </div>
-          );
-        })}
-        <div style={{ marginTop: 14, display: "grid", gap: 8 }}>
-          <input value={nuevoNombre} onChange={(e) => setNuevoNombre(e.target.value)} placeholder="Nombre del tema (ej. Tema 1 - La Constitución)" style={inputStyle} />
-          <textarea value={nuevoContenido} onChange={(e) => setNuevoContenido(e.target.value)} placeholder="Pega aquí el contenido del tema (texto del temario oficial, apuntes, resúmenes…)" rows={5} style={{ ...inputStyle, resize: "vertical" }} />
-          <button onClick={addTema} disabled={mapeando} style={{ ...btnStyle(C.ink, C.yellow), justifySelf: "start", opacity: mapeando ? 0.6 : 1 }}>
-            {mapeando ? "Añadiendo y mapeando…" : "Añadir tema"}
-          </button>
+          ))}
         </div>
       </Card>
     </div>
   );
 }
 
-function Leyenda({ color, t }) {
-  return <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><span style={{ width: 9, height: 9, borderRadius: 2, background: color }} />{t}</span>;
-}
-
-/* ============ MARCAS FÍSICAS ============ */
+/* ============ MARCAS FÍSICAS (antiguo, sin uso) ============ */
 function Fisico({ user, marcas, setMarcas, objetivos, setObjetivos }) {
   const [prueba, setPrueba] = useState(PRUEBAS[0].id);
   const [valor, setValor] = useState("");
@@ -860,117 +407,6 @@ function Fisico({ user, marcas, setMarcas, objetivos, setObjetivos }) {
               </div>
             ))}
           </div>
-        )}
-      </Card>
-    </div>
-  );
-}
-
-/* ============ DIARIO ============ */
-function Diario({ user, diario, setDiario }) {
-  const [fecha, setFecha] = useState(hoy());
-  const e = diario[fecha] || {};
-  const timerRef = React.useRef(null);
-
-  // Guardado con debounce: la UI se actualiza al instante, pero solo se
-  // escribe en Supabase 800ms después de la última pulsación (antes: 1 upsert/tecla)
-  const set = (campo, valor) => {
-    const nuevo = { ...e, [campo]: valor };
-    setDiario({ ...diario, [fecha]: nuevo });
-    const fechaCaptura = fecha;
-    const payload = {
-      entreno: nuevo.entreno || null,
-      estudio: nuevo.estudio === "" || nuevo.estudio == null ? null : parseFloat(nuevo.estudio),
-      sueno: nuevo.sueno === "" || nuevo.sueno == null ? null : parseFloat(nuevo.sueno),
-      peso: nuevo.peso === "" || nuevo.peso == null ? null : parseFloat(nuevo.peso),
-      creatina: !!nuevo.creatina,
-      notas: nuevo.notas || null,
-    };
-    clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => upsertDiario(fechaCaptura, payload, user.id), 800);
-    // Nota: no se cancela el timer al desmontar a propósito — así el último
-    // guardado pendiente siempre llega a Supabase aunque cambies de pestaña.
-  };
-
-  const ultimos = Object.keys(diario).sort().reverse().slice(0, 7);
-  const pesos = Object.entries(diario)
-    .filter(([, v]) => parseFloat(v.peso))
-    .map(([f, v]) => ({ fecha: fmtFecha(f), peso: parseFloat(v.peso), raw: f }))
-    .sort((a, b) => a.raw.localeCompare(b.raw));
-
-  return (
-    <div style={{ display: "grid", gap: 14 }}>
-      <Card>
-        <H2>Parte del día</H2>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12 }}>
-          <label style={{ display: "grid", gap: 4, fontSize: 13, fontWeight: 600 }}>
-            Fecha
-            <input type="date" value={fecha} onChange={(ev) => setFecha(ev.target.value)} style={inputStyle} />
-          </label>
-          <label style={{ display: "grid", gap: 4, fontSize: 13, fontWeight: 600 }}>
-            Entreno realizado
-            <select value={e.entreno || ""} onChange={(ev) => set("entreno", ev.target.value)} style={inputStyle}>
-              <option value="">— sin registrar —</option>
-              {TIPOS_ENTRENO.map((t) => <option key={t} value={t}>{t}</option>)}
-            </select>
-          </label>
-          <label style={{ display: "grid", gap: 4, fontSize: 13, fontWeight: 600 }}>
-            Horas de estudio
-            <input type="number" step="0.5" min="0" value={e.estudio ?? ""} onChange={(ev) => set("estudio", ev.target.value)} style={inputStyle} placeholder="2.5" />
-          </label>
-          <label style={{ display: "grid", gap: 4, fontSize: 13, fontWeight: 600 }}>
-            Horas de sueño
-            <input type="number" step="0.5" min="0" value={e.sueno ?? ""} onChange={(ev) => set("sueno", ev.target.value)} style={inputStyle} placeholder="7.5" />
-          </label>
-          <label style={{ display: "grid", gap: 4, fontSize: 13, fontWeight: 600 }}>
-            Peso (kg)
-            <input type="number" step="0.1" min="0" value={e.peso ?? ""} onChange={(ev) => set("peso", ev.target.value)} style={inputStyle} placeholder="78.4" />
-          </label>
-          <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, fontWeight: 600, marginTop: 18 }}>
-            <input type="checkbox" checked={!!e.creatina} onChange={(ev) => set("creatina", ev.target.checked)} style={{ width: 18, height: 18 }} />
-            Creatina tomada (5 g)
-          </label>
-        </div>
-        <label style={{ display: "grid", gap: 4, fontSize: 13, fontWeight: 600, marginTop: 12 }}>
-          Notas (sensaciones, dolores, qué tema estudiaste…)
-          <textarea rows={2} value={e.notas || ""} onChange={(ev) => set("notas", ev.target.value)} style={{ ...inputStyle, resize: "vertical" }} />
-        </label>
-        <p style={{ fontSize: 12, color: C.inkSoft, marginTop: 8 }}>Se guarda automáticamente al editar.</p>
-      </Card>
-
-      {pesos.length >= 2 && (
-        <Card>
-          <H2>Evolución del peso</H2>
-          <ResponsiveContainer width="100%" height={180}>
-            <LineChart data={pesos}>
-              <CartesianGrid stroke={C.line} strokeDasharray="3 3" />
-              <XAxis dataKey="fecha" tick={{ fontSize: 11 }} />
-              <YAxis domain={["auto", "auto"]} tick={{ fontSize: 11 }} width={40} />
-              <Tooltip />
-              <Line type="monotone" dataKey="peso" stroke={C.steel} strokeWidth={2.5} dot={{ r: 3 }} />
-            </LineChart>
-          </ResponsiveContainer>
-        </Card>
-      )}
-
-      <Card>
-        <H2>Últimos partes</H2>
-        {ultimos.length === 0 ? (
-          <Vacio texto="Aún no hay días registrados." />
-        ) : (
-          ultimos.map((f) => {
-            const d = diario[f];
-            return (
-              <div key={f} style={{ display: "flex", gap: 12, flexWrap: "wrap", fontSize: 13.5, padding: "7px 0", borderBottom: `1px solid ${C.line}` }}>
-                <strong style={{ minWidth: 70 }}>{fmtFecha(f)}</strong>
-                <span style={{ color: d.entreno && d.entreno !== "Descanso" ? C.ink : C.inkSoft }}>🏋 {d.entreno || "—"}</span>
-                <span>📚 {d.estudio || 0} h</span>
-                <span style={{ color: parseFloat(d.sueno) < 7 ? C.red : C.ink }}>😴 {d.sueno || "—"} h</span>
-                {d.peso && <span>⚖ {d.peso} kg</span>}
-                {d.creatina && <span style={{ color: C.green }}>✓ creatina</span>}
-              </div>
-            );
-          })
         )}
       </Card>
     </div>
