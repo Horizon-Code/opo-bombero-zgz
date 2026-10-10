@@ -12,7 +12,7 @@ import {
 } from "../lib/supabase";
 import { Temario, useEstadoTemas } from "./Temario";
 import { C, FONT_DISPLAY, FONT_BODY, hazard, hoy, fmtFecha, fechaLocal, Centro, Card, H2, StripeBar, Vacio, Bolita, inputStyle, btnStyle } from "./ui";
-import { puntosBaremo, fmtPuntos, notaFisicaProyectada, BAREMO } from "../lib/baremo";
+import { puntosBaremo, fmtPuntos, BAREMO } from "../lib/baremo";
 
 /* ============================================================
    OPO BOMBERO ZGZ — multiusuario (Supabase + Google login)
@@ -151,7 +151,7 @@ export default function App() {
       </header>
       <div style={hazard(8)} />
       <nav style={{ maxWidth: 1000, margin: "0 auto", display: "flex", gap: 6, padding: "14px 16px 0", flexWrap: "wrap" }}>
-        {[["panel", "Panel"], ["tests", "Temario y tests"], ["fisico", "Marcas físicas"], ["diario", "Diario"]].map(([id, label]) => (
+        {[["panel", "Panel"], ["tests", "Temario y tests"], ["fisico", "Pruebas físicas"], ["diario", "Diario"]].map(([id, label]) => (
           <button key={id} onClick={() => setTab(id)}
             style={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 16, letterSpacing: 1, textTransform: "uppercase", padding: "8px 18px", border: `2px solid ${C.ink}`, background: tab === id ? C.ink : "transparent", color: tab === id ? C.yellow : C.ink, borderRadius: 4 }}>
             {label}
@@ -161,7 +161,7 @@ export default function App() {
       <main style={{ maxWidth: 1000, margin: "0 auto", padding: "18px 16px 60px" }}>
         {tab === "panel" && <Panel progreso={progreso} resultados={resultados} marcas={marcas} objetivos={objetivos} diario={diario} irATemario={() => setTab("tests")} />}
         {tab === "tests" && <Temario user={user} progreso={progreso} setProgreso={setProgreso} resultados={resultados} setResultados={setResultados} />}
-        {tab === "fisico" && <Fisico user={user} marcas={marcas} setMarcas={setMarcas} objetivos={objetivos} setObjetivos={setObjetivos} />}
+        {tab === "fisico" && <FisicoProximamente />}
         {tab === "diario" && <Diario user={user} diario={diario} setDiario={setDiario} />}
       </main>
     </div>
@@ -189,23 +189,12 @@ function Panel({ progreso, resultados, marcas, objetivos, diario, irATemario }) 
   const conDatos = estadoTemas.filter((t) => t.s.vistas > 0).sort((a, b) => a.e.acierto - b.e.acierto || a.e.pct - b.e.pct);
   const sinEmpezar = estadoTemas.filter((t) => t.s.vistas === 0).length;
 
-  const resumenMarcas = PRUEBAS.map((p) => {
-    const entries = marcas.filter((e) => e.prueba === p.id).sort((a, b) => String(a.fecha).localeCompare(String(b.fecha)));
-    const last = entries[entries.length - 1];
-    const obj = objetivos[p.id] ?? p.defObj;
-    const pct = last ? (p.mejor === "mayor" ? (Number(last.valor) / obj) * 100 : (obj / Number(last.valor)) * 100) : null;
-    return { ...p, last, obj, pct };
-  });
-
   const soloTests = resultados.filter((r) => r.origen !== "repaso");
   const mediaGlobal = (() => {
     let ok = 0, tot = 0;
     soloTests.forEach((r) => { ok += r.aciertos; tot += r.preguntas; });
     return tot ? Math.round((ok / tot) * 100) : null;
   })();
-
-  // Nota física proyectada según baremo oficial (mejor marca de cada prueba oficial)
-  const notaFisica = notaFisicaProyectada(marcas);
 
   return (
     <div style={{ display: "grid", gap: 14 }}>
@@ -216,7 +205,6 @@ function Panel({ progreso, resultados, marcas, objetivos, diario, irATemario }) 
           { label: "Estudio / 7 días", value: `${horasEstudio.toFixed(1)} h`, color: C.steel },
           { label: "Sueño medio", value: mediaSueno ? `${mediaSueno.toFixed(1)} h` : "—", color: mediaSueno && mediaSueno < 7 ? C.red : C.green },
           { label: "Media tests", value: mediaGlobal != null ? `${mediaGlobal}%` : "—", color: C.ink },
-          { label: `Nota física (${notaFisica.pruebasConDatos}/4 pruebas)`, value: notaFisica.media != null ? notaFisica.media.toFixed(2).replace(".", ",") : "—", color: notaFisica.algunNoApto ? C.red : notaFisica.media >= 8 ? C.green : C.steel },
         ].map((s) => (
           <Card key={s.label} style={{ padding: 14, borderTop: `4px solid ${s.color}` }}>
             <div style={{ fontSize: 11, letterSpacing: 1, textTransform: "uppercase", color: C.inkSoft }}>{s.label}</div>
@@ -224,26 +212,6 @@ function Panel({ progreso, resultados, marcas, objetivos, diario, irATemario }) 
           </Card>
         ))}
       </div>
-
-      <Card>
-        <H2>Estado de las pruebas físicas</H2>
-        {marcas.length === 0 ? (
-          <Vacio texto="Aún no hay marcas registradas. Ve a «Marcas físicas» y apunta tu primer test de cada prueba: esa será tu línea de salida." />
-        ) : (
-          <div style={{ display: "grid", gap: 10 }}>
-            {resumenMarcas.filter((p) => p.last).map((p) => (
-              <div key={p.id} style={{ display: "grid", gridTemplateColumns: "150px 1fr 130px", gap: 10, alignItems: "center" }}>
-                <div style={{ fontWeight: 600, fontSize: 14 }}>{p.nombre}</div>
-                <StripeBar pct={p.pct} color={p.pct >= 100 ? C.green : p.pct >= 80 ? C.yellow : C.red} />
-                <div style={{ fontSize: 13, color: C.inkSoft, textAlign: "right" }}>
-                  {p.tipo === "tiempo" ? fmtTime(Number(p.last.valor)) : Number(p.last.valor)} / obj. {p.tipo === "tiempo" ? fmtTime(p.obj) : p.obj}
-                  {(() => { const pts = puntosBaremo(p.id, Number(p.last.valor)); const f = fmtPuntos(pts); return f ? <strong style={{ color: pts === 0 ? C.red : pts >= 8 ? C.green : C.ink, marginLeft: 6 }}>· {f}</strong> : null; })()}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 14 }}>
         <Card>
@@ -287,7 +255,69 @@ function Panel({ progreso, resultados, marcas, objetivos, diario, irATemario }) 
   );
 }
 
-/* ============ MARCAS FÍSICAS ============ */
+/* ============ PRUEBAS FÍSICAS · próximamente ============ */
+// La sección se está rehaciendo (plan de entrenamiento con objetivo de 10 en
+// 1.500 m, natación 100 m y cuerda 6 m). Mientras tanto, la pestaña lo anuncia.
+// El componente Fisico de abajo se conserva como base y no se muestra.
+const PRUEBAS_10 = [
+  { nombre: "1.500 m", marca: "< 4:28", nota: "Carrera", color: C.red },
+  { nombre: "Natación 100 m", marca: "< 1:00", nota: "Piscina", color: C.steel },
+  { nombre: "Cuerda 6 m", marca: "≤ 5,00 s", nota: "Trepa", color: C.yellow },
+];
+const LO_QUE_LLEGA = [
+  ["Plan hasta el examen", "El entrenamiento del día y los tiempos que deberías hacer, semana a semana."],
+  ["Registro en un toque", "Apunta lo que hiciste hoy sin rellenar formularios."],
+  ["Tests de control", "Cada 3-4 semanas, con tus puntos del baremo oficial."],
+  ["Strava (opcional)", "Que las carreras y la piscina lleguen solas."],
+];
+
+function FisicoProximamente() {
+  return (
+    <div style={{ display: "grid", gap: 14 }}>
+      <section style={{ background: C.ink, color: "#fff", borderRadius: 6, overflow: "hidden" }}>
+        <div style={hazard(10)} />
+        <div style={{ padding: "22px 22px 24px" }}>
+          <span style={{ display: "inline-block", fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 13, letterSpacing: 2, textTransform: "uppercase", background: C.yellow, color: C.ink, padding: "3px 10px", borderRadius: 3 }}>
+            Próximamente
+          </span>
+          <h2 style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 38, letterSpacing: 1.5, textTransform: "uppercase", margin: "12px 0 6px", lineHeight: 1 }}>
+            Pruebas <span style={{ color: C.yellow }}>físicas</span>
+          </h2>
+          <p style={{ color: "#C8CED3", fontSize: 15, margin: 0, maxWidth: 560, lineHeight: 1.5 }}>
+            Estamos rehaciendo esta sección. El objetivo será siempre el <strong style={{ color: "#fff" }}>10</strong> en cada prueba y la aplicación te dirá qué entrenar cada día.
+          </p>
+        </div>
+      </section>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}>
+        {PRUEBAS_10.map((p) => (
+          <Card key={p.nombre} style={{ padding: 14, borderTop: `4px solid ${p.color}` }}>
+            <div style={{ fontSize: 11, letterSpacing: 1, textTransform: "uppercase", color: C.inkSoft }}>{p.nota} · {p.nombre}</div>
+            <div style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 32, lineHeight: 1.1, marginTop: 4 }}>{p.marca}</div>
+            <div style={{ fontSize: 12, color: C.inkSoft }}>marca para el 10</div>
+          </Card>
+        ))}
+      </div>
+
+      <Card>
+        <H2>Lo que llega</H2>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+          {LO_QUE_LLEGA.map(([t, d], i) => (
+            <div key={t} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+              <span style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 16, minWidth: 28, height: 28, borderRadius: 4, background: C.ink, color: C.yellow, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>{i + 1}</span>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 14 }}>{t}</div>
+                <div style={{ fontSize: 13, color: C.inkSoft, lineHeight: 1.45 }}>{d}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+/* ============ MARCAS FÍSICAS (antiguo, sin uso) ============ */
 function Fisico({ user, marcas, setMarcas, objetivos, setObjetivos }) {
   const [prueba, setPrueba] = useState(PRUEBAS[0].id);
   const [valor, setValor] = useState("");
