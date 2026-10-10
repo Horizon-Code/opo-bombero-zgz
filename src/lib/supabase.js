@@ -36,13 +36,7 @@ export const getObjetivos = async () => {
 export const setObjetivo = async (prueba, valor, userId) =>
   supabase.from("objetivos").upsert({ user_id: userId, prueba, valor });
 
-/* ---------- diario ---------- */
-export const getDiario = async () => {
-  const rows = (await supabase.from("diario").select("*")).data || [];
-  return Object.fromEntries(rows.map((r) => [r.fecha, r]));
-};
-export const upsertDiario = async (fecha, campos, userId) =>
-  supabase.from("diario").upsert({ user_id: userId, fecha, ...campos });
+/* ---------- diario: la tabla sigue en la base de datos, la app ya no la usa ---------- */
 
 /* ---------- banco común de preguntas ---------- */
 // Trae las preguntas pedidas por id (en tandas para no pasarse de longitud de URL)

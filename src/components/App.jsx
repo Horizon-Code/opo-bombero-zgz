@@ -8,9 +8,10 @@ import {
   supabase, loginGoogle, logout,
   getResultados,
   getMarcas, addMarca, delMarca, getObjetivos, setObjetivo as dbSetObjetivo,
-  getDiario, upsertDiario, getProgreso,
+  getProgreso,
 } from "../lib/supabase";
 import { Temario, useEstadoTemas } from "./Temario";
+import { statsBloques, statsDe, bloquePorId } from "../lib/banco";
 import { C, FONT_DISPLAY, FONT_BODY, hazard, hoy, fmtFecha, fechaLocal, Centro, Card, H2, StripeBar, Vacio, Bolita, inputStyle, btnStyle } from "./ui";
 import { puntosBaremo, fmtPuntos, BAREMO } from "../lib/baremo";
 
@@ -45,12 +46,6 @@ const PRUEBAS = [
   { id: "dom", nombre: "Dominadas", tipo: "reps", mejor: "mayor", defObj: 10, hint: "repeticiones" },
   { id: "press", nombre: "Press banca 45 kg", tipo: "reps", mejor: "mayor", defObj: 20, hint: "repeticiones" },
 ];
-// Semana tipo del plan v2
-const TIPOS_ENTRENO = [
-  "Carrera calidad (VO2/ritmo)", "Series umbral", "Fuerza tracción + cuerda",
-  "Fuerza pierna + core", "Natación", "Combinado sábado", "Bici Z2",
-  "Descanso activo", "Descanso",
-];
 
 /* ============================================================ */
 export default function App() {
@@ -61,7 +56,6 @@ export default function App() {
   const [resultados, setResultados] = useState([]);
   const [marcas, setMarcas] = useState([]);
   const [objetivos, setObjetivos] = useState({});
-  const [diario, setDiario] = useState({});
   const [progreso, setProgreso] = useState({});
 
   useEffect(() => {
@@ -79,9 +73,9 @@ export default function App() {
     (async () => {
       try {
         setErrorCarga(false);
-        const [r, m, o, d, pg] = await Promise.all([getResultados(), getMarcas(), getObjetivos(), getDiario(), getProgreso()]);
+        const [r, m, o, pg] = await Promise.all([getResultados(), getMarcas(), getObjetivos(), getProgreso()]);
         if (cancelado) return;
-        setResultados(r); setMarcas(m); setObjetivos(o); setDiario(d); setProgreso(pg);
+        setResultados(r); setMarcas(m); setObjetivos(o); setProgreso(pg);
         setReady(true);
       } catch (e) {
         console.error("Carga inicial:", e);
@@ -103,7 +97,7 @@ export default function App() {
               <span style={{ color: C.red }}>Opo</span> Bombero<br /><span style={{ color: C.yellow }}>Zaragoza</span>
             </h1>
             <p style={{ color: "#9AA3AA", fontSize: 16, margin: "16px 0 28px" }}>
-              Entreno, estudio, marcas y el temario oficial en 27.425 preguntas.<br />Tu parte de servicio diario hasta la plaza.
+              El temario oficial en 27.425 preguntas, con tu avance tema a tema.<br />Tu parte de servicio diario hasta la plaza.
             </p>
             <button
               onClick={loginGoogle}
@@ -151,7 +145,7 @@ export default function App() {
       </header>
       <div style={hazard(8)} />
       <nav style={{ maxWidth: 1000, margin: "0 auto", display: "flex", gap: 6, padding: "14px 16px 0", flexWrap: "wrap" }}>
-        {[["panel", "Panel"], ["tests", "Temario y tests"], ["fisico", "Pruebas físicas"], ["diario", "Diario"]].map(([id, label]) => (
+        {[["panel", "Panel"], ["tests", "Temario y tests"], ["fisico", "Pruebas físicas"]].map(([id, label]) => (
           <button key={id} onClick={() => setTab(id)}
             style={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 16, letterSpacing: 1, textTransform: "uppercase", padding: "8px 18px", border: `2px solid ${C.ink}`, background: tab === id ? C.ink : "transparent", color: tab === id ? C.yellow : C.ink, borderRadius: 4 }}>
             {label}
@@ -159,30 +153,31 @@ export default function App() {
         ))}
       </nav>
       <main style={{ maxWidth: 1000, margin: "0 auto", padding: "18px 16px 60px" }}>
-        {tab === "panel" && <Panel progreso={progreso} resultados={resultados} marcas={marcas} objetivos={objetivos} diario={diario} irATemario={() => setTab("tests")} />}
+        {tab === "panel" && <Panel progreso={progreso} resultados={resultados} irATemario={() => setTab("tests")} />}
         {tab === "tests" && <Temario user={user} progreso={progreso} setProgreso={setProgreso} resultados={resultados} setResultados={setResultados} />}
         {tab === "fisico" && <FisicoProximamente />}
-        {tab === "diario" && <Diario user={user} diario={diario} setDiario={setDiario} />}
       </main>
     </div>
   );
 }
 
 /* ============ PANEL ============ */
-function Panel({ progreso, resultados, marcas, objetivos, diario, irATemario }) {
-  const last7 = [...Array(7)].map((_, i) => fechaLocal(-i));
-  const entrenosSemana = last7.filter((d) => diario[d]?.entreno && !diario[d].entreno.startsWith("Descanso")).length;
-  const horasEstudio = last7.reduce((a, d) => a + (parseFloat(diario[d]?.estudio) || 0), 0);
-  const suenos = last7.map((d) => parseFloat(diario[d]?.sueno)).filter((v) => !isNaN(v));
-  const mediaSueno = suenos.length ? suenos.reduce((a, b) => a + b, 0) / suenos.length : null;
-
+function Panel({ progreso, resultados, irATemario }) {
+  // Todo sale de lo que ya registra la app: tests hechos y progreso por pregunta (nada a mano)
+  const diasConEstudio = new Set([
+    ...resultados.map((r) => String(r.fecha)),
+    ...Object.values(progreso).map((p) => String(p.ultima_fecha)),
+  ]);
   let racha = 0;
   for (let i = 0; i <= 400; i++) {
-    const e = diario[fechaLocal(-i)];
-    if (e && (e.entreno || parseFloat(e.estudio) > 0)) racha++;
-    else if (i === 0) continue;
+    if (diasConEstudio.has(fechaLocal(-i))) racha++;
+    else if (i === 0) continue; // hoy aún no has estudiado: la racha de ayer sigue viva
     else break;
   }
+  const hace7 = fechaLocal(-6);
+  const preguntasSemana = Object.values(progreso).filter((p) => p.ultima_fecha && String(p.ultima_fecha) >= hace7).length;
+  const sg = statsDe(Object.keys(bloquePorId), statsBloques(progreso));
+  const pctDominado = sg.total ? (100 * sg.dominadas) / sg.total : 0;
 
   // Temas empezados con peor acierto: los que piden refuerzo
   const estadoTemas = useEstadoTemas(progreso);
@@ -200,10 +195,9 @@ function Panel({ progreso, resultados, marcas, objetivos, diario, irATemario }) 
     <div style={{ display: "grid", gap: 14 }}>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10 }}>
         {[
-          { label: "Racha activa", value: `${racha} d`, color: C.red },
-          { label: "Entrenos / 7 días", value: `${entrenosSemana} / 6`, color: C.steel },
-          { label: "Estudio / 7 días", value: `${horasEstudio.toFixed(1)} h`, color: C.steel },
-          { label: "Sueño medio", value: mediaSueno ? `${mediaSueno.toFixed(1)} h` : "—", color: mediaSueno && mediaSueno < 7 ? C.red : C.green },
+          { label: "Racha de estudio", value: `${racha} d`, color: C.red },
+          { label: "Preguntas / 7 días", value: preguntasSemana.toLocaleString("es-ES"), color: C.steel },
+          { label: "Temario dominado", value: `${pctDominado.toFixed(pctDominado < 10 ? 1 : 0).replace(".", ",")} %`, color: C.steel },
           { label: "Media tests", value: mediaGlobal != null ? `${mediaGlobal}%` : "—", color: C.ink },
         ].map((s) => (
           <Card key={s.label} style={{ padding: 14, borderTop: `4px solid ${s.color}` }}>
@@ -413,117 +407,6 @@ function Fisico({ user, marcas, setMarcas, objetivos, setObjetivos }) {
               </div>
             ))}
           </div>
-        )}
-      </Card>
-    </div>
-  );
-}
-
-/* ============ DIARIO ============ */
-function Diario({ user, diario, setDiario }) {
-  const [fecha, setFecha] = useState(hoy());
-  const e = diario[fecha] || {};
-  const timerRef = React.useRef(null);
-
-  // Guardado con debounce: la UI se actualiza al instante, pero solo se
-  // escribe en Supabase 800ms después de la última pulsación (antes: 1 upsert/tecla)
-  const set = (campo, valor) => {
-    const nuevo = { ...e, [campo]: valor };
-    setDiario({ ...diario, [fecha]: nuevo });
-    const fechaCaptura = fecha;
-    const payload = {
-      entreno: nuevo.entreno || null,
-      estudio: nuevo.estudio === "" || nuevo.estudio == null ? null : parseFloat(nuevo.estudio),
-      sueno: nuevo.sueno === "" || nuevo.sueno == null ? null : parseFloat(nuevo.sueno),
-      peso: nuevo.peso === "" || nuevo.peso == null ? null : parseFloat(nuevo.peso),
-      creatina: !!nuevo.creatina,
-      notas: nuevo.notas || null,
-    };
-    clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => upsertDiario(fechaCaptura, payload, user.id), 800);
-    // Nota: no se cancela el timer al desmontar a propósito — así el último
-    // guardado pendiente siempre llega a Supabase aunque cambies de pestaña.
-  };
-
-  const ultimos = Object.keys(diario).sort().reverse().slice(0, 7);
-  const pesos = Object.entries(diario)
-    .filter(([, v]) => parseFloat(v.peso))
-    .map(([f, v]) => ({ fecha: fmtFecha(f), peso: parseFloat(v.peso), raw: f }))
-    .sort((a, b) => a.raw.localeCompare(b.raw));
-
-  return (
-    <div style={{ display: "grid", gap: 14 }}>
-      <Card>
-        <H2>Parte del día</H2>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12 }}>
-          <label style={{ display: "grid", gap: 4, fontSize: 13, fontWeight: 600 }}>
-            Fecha
-            <input type="date" value={fecha} onChange={(ev) => setFecha(ev.target.value)} style={inputStyle} />
-          </label>
-          <label style={{ display: "grid", gap: 4, fontSize: 13, fontWeight: 600 }}>
-            Entreno realizado
-            <select value={e.entreno || ""} onChange={(ev) => set("entreno", ev.target.value)} style={inputStyle}>
-              <option value="">— sin registrar —</option>
-              {TIPOS_ENTRENO.map((t) => <option key={t} value={t}>{t}</option>)}
-            </select>
-          </label>
-          <label style={{ display: "grid", gap: 4, fontSize: 13, fontWeight: 600 }}>
-            Horas de estudio
-            <input type="number" step="0.5" min="0" value={e.estudio ?? ""} onChange={(ev) => set("estudio", ev.target.value)} style={inputStyle} placeholder="2.5" />
-          </label>
-          <label style={{ display: "grid", gap: 4, fontSize: 13, fontWeight: 600 }}>
-            Horas de sueño
-            <input type="number" step="0.5" min="0" value={e.sueno ?? ""} onChange={(ev) => set("sueno", ev.target.value)} style={inputStyle} placeholder="7.5" />
-          </label>
-          <label style={{ display: "grid", gap: 4, fontSize: 13, fontWeight: 600 }}>
-            Peso (kg)
-            <input type="number" step="0.1" min="0" value={e.peso ?? ""} onChange={(ev) => set("peso", ev.target.value)} style={inputStyle} placeholder="78.4" />
-          </label>
-          <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, fontWeight: 600, marginTop: 18 }}>
-            <input type="checkbox" checked={!!e.creatina} onChange={(ev) => set("creatina", ev.target.checked)} style={{ width: 18, height: 18 }} />
-            Creatina tomada (5 g)
-          </label>
-        </div>
-        <label style={{ display: "grid", gap: 4, fontSize: 13, fontWeight: 600, marginTop: 12 }}>
-          Notas (sensaciones, dolores, qué tema estudiaste…)
-          <textarea rows={2} value={e.notas || ""} onChange={(ev) => set("notas", ev.target.value)} style={{ ...inputStyle, resize: "vertical" }} />
-        </label>
-        <p style={{ fontSize: 12, color: C.inkSoft, marginTop: 8 }}>Se guarda automáticamente al editar.</p>
-      </Card>
-
-      {pesos.length >= 2 && (
-        <Card>
-          <H2>Evolución del peso</H2>
-          <ResponsiveContainer width="100%" height={180}>
-            <LineChart data={pesos}>
-              <CartesianGrid stroke={C.line} strokeDasharray="3 3" />
-              <XAxis dataKey="fecha" tick={{ fontSize: 11 }} />
-              <YAxis domain={["auto", "auto"]} tick={{ fontSize: 11 }} width={40} />
-              <Tooltip />
-              <Line type="monotone" dataKey="peso" stroke={C.steel} strokeWidth={2.5} dot={{ r: 3 }} />
-            </LineChart>
-          </ResponsiveContainer>
-        </Card>
-      )}
-
-      <Card>
-        <H2>Últimos partes</H2>
-        {ultimos.length === 0 ? (
-          <Vacio texto="Aún no hay días registrados." />
-        ) : (
-          ultimos.map((f) => {
-            const d = diario[f];
-            return (
-              <div key={f} style={{ display: "flex", gap: 12, flexWrap: "wrap", fontSize: 13.5, padding: "7px 0", borderBottom: `1px solid ${C.line}` }}>
-                <strong style={{ minWidth: 70 }}>{fmtFecha(f)}</strong>
-                <span style={{ color: d.entreno && d.entreno !== "Descanso" ? C.ink : C.inkSoft }}>🏋 {d.entreno || "—"}</span>
-                <span>📚 {d.estudio || 0} h</span>
-                <span style={{ color: parseFloat(d.sueno) < 7 ? C.red : C.ink }}>😴 {d.sueno || "—"} h</span>
-                {d.peso && <span>⚖ {d.peso} kg</span>}
-                {d.creatina && <span style={{ color: C.green }}>✓ creatina</span>}
-              </div>
-            );
-          })
         )}
       </Card>
     </div>
