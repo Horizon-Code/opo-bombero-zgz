@@ -10,7 +10,7 @@ export const supabase = createBrowserClient(
 export async function loginGoogle() {
   await supabase.auth.signInWithOAuth({
     provider: "google",
-    options: { redirectTo: typeof window !== "undefined" ? window.location.origin : undefined },
+    options: { redirectTo: typeof window !== "undefined" ? `${window.location.origin}/app` : undefined },
   });
 }
 export async function logout() {
