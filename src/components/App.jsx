@@ -12,7 +12,7 @@ import {
 } from "../lib/supabase";
 import { Temario, useEstadoTemas } from "./Temario";
 import { Insignia, Marca } from "./Insignia";
-import { statsBloques, statsDe, bloquePorId } from "../lib/banco";
+import { statsBloques, statsDe, bloquePorId, TOTAL_PREGUNTAS } from "../lib/banco";
 import { C, FONT_DISPLAY, FONT_BODY, hazard, hoy, fmtFecha, fechaLocal, Centro, Card, H2, StripeBar, Vacio, Bolita, inputStyle, btnStyle } from "./ui";
 import { puntosBaremo, fmtPuntos, BAREMO } from "../lib/baremo";
 
@@ -109,7 +109,7 @@ export default function App() {
               Opo <span style={{ color: C.red }}>Bomberos</span><br /><span style={{ color: C.yellow }}>Zaragoza</span>
             </h1>
             <p style={{ color: "#9AA3AA", fontSize: 16, margin: "16px 0 28px" }}>
-              El temario oficial en 27.425 preguntas, con tu avance tema a tema.<br />Tu parte de servicio diario hasta la plaza.
+              El temario oficial en {TOTAL_PREGUNTAS.toLocaleString("es-ES")} preguntas, con tu avance tema a tema.<br />Tu parte de servicio diario hasta la plaza.
             </p>
             <button
               onClick={loginGoogle}

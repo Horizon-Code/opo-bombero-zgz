@@ -1,13 +1,13 @@
-import { SITE } from "../lib/site";
+import { SITE, TOTAL_TXT } from "../lib/site";
 
 export const metadata = {
   metadataBase: new URL(SITE),
   title: {
-    default: "Tests Oposición Bombero Zaragoza 2026 · 27.425 preguntas",
+    default: `Tests Oposición Bombero Zaragoza 2026 · ${TOTAL_TXT} preguntas`,
     template: "%s · Opo Bomberos Zaragoza",
   },
   description:
-    "Prepara la oposición de Bombero-Conductor del Ayuntamiento de Zaragoza con 27.425 preguntas de los 40 temas, simulacros de examen y tu avance tema a tema.",
+    `Prepara la oposición de Bombero-Conductor del Ayuntamiento de Zaragoza con ${TOTAL_TXT} preguntas de los 40 temas, simulacros de examen y tu avance tema a tema.`,
   applicationName: "Opo Bomberos Zaragoza",
   keywords: [
     "oposiciones bomberos Zaragoza", "oposición bombero Zaragoza", "test bombero Zaragoza",
@@ -19,15 +19,15 @@ export const metadata = {
     locale: "es_ES",
     url: "/",
     siteName: "Opo Bomberos Zaragoza",
-    title: "Tests Oposición Bombero Zaragoza 2026 · 27.425 preguntas",
+    title: `Tests Oposición Bombero Zaragoza 2026 · ${TOTAL_TXT} preguntas`,
     description:
-      "Los 40 temas del temario oficial en 27.425 preguntas tipo test, con simulacros de 100 preguntas en 80 minutos y tu avance tema a tema.",
+      `Los 40 temas del temario oficial en ${TOTAL_TXT} preguntas tipo test, con simulacros de 100 preguntas en 80 minutos y tu avance tema a tema.`,
     images: [{ url: "/og.png", width: 1200, height: 630, alt: "Opo Bomberos Zaragoza · tests de la oposición" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "Tests Oposición Bombero Zaragoza 2026",
-    description: "27.425 preguntas de los 40 temas, simulacros y tu avance tema a tema.",
+    description: `${TOTAL_TXT} preguntas de los 40 temas, simulacros y tu avance tema a tema.`,
     images: ["/og.png"],
   },
   icons: {

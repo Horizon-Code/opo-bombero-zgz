@@ -1,8 +1,10 @@
+import { TOTAL_TXT } from "../lib/site";
+
 export default function manifest() {
   return {
     name: "Opo Bomberos Zaragoza",
     short_name: "Opo Bomberos",
-    description: "Tests de la oposición de Bombero-Conductor de Zaragoza: 27.425 preguntas y tu avance tema a tema.",
+    description: `Tests de la oposición de Bombero-Conductor de Zaragoza: ${TOTAL_TXT} preguntas y tu avance tema a tema.`,
     start_url: "/app",
     display: "standalone",
     background_color: "#16191D",
