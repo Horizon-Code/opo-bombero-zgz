@@ -144,6 +144,7 @@ export default function App() {
         button { cursor: pointer; }
         input:focus, select:focus, textarea:focus, button:focus-visible { outline: 2px solid ${C.steel}; outline-offset: 1px; }
         @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+        html { scrollbar-gutter: stable; }
       `}</style>
       <header style={{ background: C.ink, color: "#fff", padding: "14px 20px 10px" }}>
         <div style={{ maxWidth: 1000, margin: "0 auto", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
