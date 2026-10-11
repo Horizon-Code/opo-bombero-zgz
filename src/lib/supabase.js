@@ -13,6 +13,13 @@ export async function loginGoogle() {
     options: { redirectTo: typeof window !== "undefined" ? `${window.location.origin}/app` : undefined },
   });
 }
+// Entrada con el botón de Google (Google Identity Services). Google entrega un
+// token de identidad en esta misma página y se lo pasamos a Supabase: la ventana
+// de Google muestra nuestro dominio y no el de Supabase.
+export async function loginGoogleConToken(token, nonce) {
+  const { error } = await supabase.auth.signInWithIdToken({ provider: "google", token, nonce });
+  if (error) throw error;
+}
 export async function logout() {
   await supabase.auth.signOut();
 }
