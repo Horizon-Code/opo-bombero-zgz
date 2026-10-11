@@ -67,6 +67,25 @@ export const getProgreso = async () => {
   }
   return Object.fromEntries(filas.map((r) => [r.pregunta_id, r]));
 };
+/* ---------- preguntas señaladas por el usuario ---------- */
+// Un aviso por persona y pregunta: si la vuelve a señalar, se actualiza y queda pendiente otra vez.
+export const reportarPregunta = async ({ preguntaId, motivo, comentario }, userId) => {
+  const { error } = await supabase.from("reportes_preguntas").upsert(
+    {
+      user_id: userId, pregunta_id: preguntaId, motivo,
+      comentario: comentario?.trim() ? comentario.trim().slice(0, 1000) : null,
+      estado: "pendiente", updated_at: new Date().toISOString(),
+    },
+    { onConflict: "user_id,pregunta_id" }
+  );
+  if (error) throw error;
+};
+export const getMisReportes = async () => {
+  const { data, error } = await supabase.from("reportes_preguntas").select("pregunta_id");
+  if (error) { console.error("getMisReportes:", error); return new Set(); }
+  return new Set((data || []).map((r) => r.pregunta_id));
+};
+
 export const guardarProgreso = async (filas, userId) => {
   if (!filas.length) return;
   const { error } = await supabase.from("progreso").upsert(filas.map((f) => ({ ...f, user_id: userId })));

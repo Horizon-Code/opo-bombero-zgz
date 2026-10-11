@@ -5,7 +5,7 @@ import {
   estructura, TOTAL_PREGUNTAS, temaPorNumero, bloquePorId, bloquesDeTema, bloquesDeNodo,
   statsBloques, statsDe, estado, idsDeBloques, elegir, simulacro, corregir,
 } from "../lib/banco";
-import { getPreguntasPorIds, guardarProgreso, addResultado } from "../lib/supabase";
+import { getPreguntasPorIds, guardarProgreso, addResultado, reportarPregunta, getMisReportes } from "../lib/supabase";
 
 const fmtN = (n) => n.toLocaleString("es-ES");
 const LETRAS = "abc";
@@ -30,6 +30,11 @@ export function Temario({ user, progreso, setProgreso, resultados, setResultados
   const sb = useMemo(() => statsBloques(progreso), [progreso]);
   const progresoRef = useRef(progreso);
   progresoRef.current = progreso;
+
+  // Preguntas que este usuario ya ha señalado (para mostrarlas como «Señalada»)
+  const [senaladas, setSenaladas] = useState(() => new Set());
+  useEffect(() => { getMisReportes().then(setSenaladas); }, []);
+  const senalar = { user, senaladas, onSenalada: (id) => setSenaladas((s) => new Set(s).add(id)) };
 
   const toggle = (set, setter, k) => { const x = new Set(set); x.has(k) ? x.delete(k) : x.add(k); setter(x); };
 
@@ -98,10 +103,10 @@ export function Temario({ user, progreso, setProgreso, resultados, setResultados
 
   // ====== test en curso / resultado ======
   if (quiz && !quiz.resultado)
-    return <Quiz quiz={quiz} onRespuesta={(q, r) => registrar([{ q, r }])} onTerminar={terminar} onSalir={() => setQuiz(null)} />;
+    return <Quiz quiz={quiz} senalar={senalar} onRespuesta={(q, r) => registrar([{ q, r }])} onTerminar={terminar} onSalir={() => setQuiz(null)} />;
   if (quiz && quiz.resultado)
     return (
-      <Resultado quiz={quiz} onVolver={() => setQuiz(null)}
+      <Resultado quiz={quiz} senalar={senalar} onVolver={() => setQuiz(null)}
         onRepetir={(ids) => empezar(ids, { titulo: "Repaso de lo fallado en el test anterior", modo: "practica", origen: "repaso" })} />
     );
 
@@ -273,7 +278,7 @@ function FilaTema({ t, sb, abiertos, toggleAbierto, marcado, toggleMarcado, carg
 /* ============ TEST EN CURSO ============ */
 const fmtReloj = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
-function Quiz({ quiz, onRespuesta, onTerminar, onSalir }) {
+function Quiz({ quiz, senalar, onRespuesta, onTerminar, onSalir }) {
   const examen = quiz.modo === "examen";
   const total = quiz.preguntas.length;
   const [idx, setIdx] = useState(0);
@@ -350,6 +355,8 @@ function Quiz({ quiz, onRespuesta, onTerminar, onSalir }) {
         })}
       </div>
 
+      <SenalarPregunta key={q.id} preguntaId={q.id} {...senalar} />
+
       {!examen && !mostrado && (
         <button onClick={() => { const r = [...resp]; r[idx] = null; setResp(r); setMostrado(true); onRespuesta(q, null); }}
           style={{ ...btnStyle("transparent", C.inkSoft), border: `1px solid ${C.line}`, marginTop: 10, fontSize: 13, padding: "6px 12px" }}>
@@ -401,8 +408,75 @@ function Quiz({ quiz, onRespuesta, onTerminar, onSalir }) {
   );
 }
 
+/* ============ SEÑALAR UNA PREGUNTA ============ */
+const MOTIVOS = [
+  ["no_se_entiende", "No se entiende"],
+  ["respuesta_incorrecta", "La respuesta correcta está mal"],
+  ["errata", "Tiene una errata o un dato desactualizado"],
+  ["otro", "Otra cosa"],
+];
+
+function SenalarPregunta({ preguntaId, user, senaladas, onSenalada }) {
+  const [abierto, setAbierto] = useState(false);
+  const [motivo, setMotivo] = useState("");
+  const [comentario, setComentario] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const [aviso, setAviso] = useState(null); // { ok: bool, texto }
+  const ya = senaladas?.has(preguntaId);
+
+  const enviar = async () => {
+    if (!motivo || enviando) return;
+    setEnviando(true); setAviso(null);
+    try {
+      await reportarPregunta({ preguntaId, motivo, comentario }, user.id);
+      onSenalada?.(preguntaId);
+      setAbierto(false); setMotivo(""); setComentario("");
+      setAviso({ ok: true, texto: "Gracias. La revisaremos y, si hay que corregirla, se cambiará para todos." });
+    } catch (e) {
+      console.error("reportarPregunta:", e);
+      setAviso({ ok: false, texto: "No se pudo enviar el aviso. Inténtalo de nuevo en un momento." });
+    }
+    setEnviando(false);
+  };
+
+  const etiqueta = { fontSize: 14, display: "flex", alignItems: "center", gap: 8, padding: "4px 0", cursor: "pointer" };
+  return (
+    <div style={{ marginTop: 10 }}>
+      {!abierto && (
+        <button onClick={() => { setAbierto(true); setAviso(null); }} aria-expanded={false}
+          style={{ background: "none", border: "none", padding: "4px 0", fontSize: 13, fontFamily: FONT_BODY, color: ya ? C.steel : C.inkSoft, textDecoration: "underline", textUnderlineOffset: 3 }}>
+          ⚑ {ya ? "Señalada · cambiar el aviso" : "Señalar esta pregunta"}
+        </button>
+      )}
+      {aviso && <p role="status" style={{ fontSize: 13, margin: "4px 0 0", color: aviso.ok ? C.green : C.red }}>{aviso.texto}</p>}
+      {abierto && (
+        <div style={{ marginTop: 4, padding: 12, background: "#F4F6F7", border: `1px solid ${C.line}`, borderRadius: 5 }}>
+          <fieldset style={{ border: "none", margin: 0, padding: 0 }}>
+            <legend style={{ fontWeight: 600, fontSize: 14, marginBottom: 4, padding: 0 }}>¿Qué le pasa a esta pregunta?</legend>
+            {MOTIVOS.map(([v, t]) => (
+              <label key={v} style={etiqueta}>
+                <input type="radio" name={`motivo-${preguntaId}`} value={v} checked={motivo === v} onChange={() => setMotivo(v)} style={{ width: 16, height: 16, margin: 0 }} />
+                {t}
+              </label>
+            ))}
+          </fieldset>
+          <textarea value={comentario} onChange={(e) => setComentario(e.target.value)} maxLength={1000} rows={3}
+            aria-label="Comentario (opcional)" placeholder="Cuéntanos qué has visto (opcional)"
+            style={{ ...inputStyle, width: "100%", boxSizing: "border-box", marginTop: 8, resize: "vertical" }} />
+          <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+            <button onClick={enviar} disabled={!motivo || enviando} style={{ ...btnStyle(), padding: "6px 14px", fontSize: 13, opacity: !motivo || enviando ? 0.45 : 1 }}>
+              {enviando ? "Enviando…" : "Enviar aviso"}
+            </button>
+            <button onClick={() => setAbierto(false)} style={{ ...btnStyle("transparent", C.inkSoft), border: `1px solid ${C.line}`, padding: "6px 14px", fontSize: 13 }}>Cancelar</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ============ RESULTADO ============ */
-function Resultado({ quiz, onVolver, onRepetir }) {
+function Resultado({ quiz, senalar, onVolver, onRepetir }) {
   const { aciertos, fallos, blancos, nota, porTema } = quiz.resultado;
   const total = quiz.preguntas.length;
   const examen100 = total === 100;
@@ -449,6 +523,7 @@ function Resultado({ quiz, onVolver, onRepetir }) {
               {r != null && <div style={{ color: C.red }}>Tu respuesta: {LETRAS[r]}) {q.opciones[r]}</div>}
               <div style={{ color: C.green }}>Correcta: {LETRAS[q.correcta]}) {q.opciones[q.correcta]}</div>
               <div style={{ color: C.inkSoft, marginTop: 4 }}>{q.explicacion}</div>
+              <SenalarPregunta preguntaId={q.id} {...senalar} />
             </div>
           ))}
         </Card>
