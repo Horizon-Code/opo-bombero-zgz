@@ -25,7 +25,7 @@ export default function Fuentes() {
       </ul>
 
       <h2>Retirada o corrección</h2>
-      <p>Si eres titular de alguno de estos contenidos y quieres que se retire, se cite de otra forma o se corrija algo, escríbenos a <a href="mailto:[EMAIL DE CONTACTO]">[EMAIL DE CONTACTO]</a> y lo atenderemos.</p>
+      <p>Si eres titular de alguno de estos contenidos y quieres que se retire, se cite de otra forma o se corrija algo, escríbenos a <a href="mailto:rubenpasamarsanchez@gmail.com">rubenpasamarsanchez@gmail.com</a> y lo atenderemos.</p>
 
       <h2>Sin relación oficial</h2>
       <p>Opo Bomberos Zaragoza es un proyecto independiente. No tiene relación con el Ayuntamiento de Zaragoza, su Servicio contra Incendios, de Salvamento y Protección Civil, ni con los autores de los manuales citados, que no han revisado ni respaldan este proyecto.</p>

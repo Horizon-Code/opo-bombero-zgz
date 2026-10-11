@@ -42,7 +42,7 @@ export function Pie() {
           <a href="/fuentes">Fuentes y licencias</a>
           <a href="/privacidad">Política de privacidad</a>
           <a href="/aviso-legal">Aviso legal</a>
-          <a href="mailto:[EMAIL DE CONTACTO]">Contacto</a>
+          <a href="mailto:rubenpasamarsanchez@gmail.com">Contacto</a>
         </nav>
       </div>
     </footer>

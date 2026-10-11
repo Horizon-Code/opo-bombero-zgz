@@ -13,7 +13,7 @@ export default function Privacidad() {
       <h1>Política de privacidad</h1>
 
       <h2>Responsable</h2>
-      <p>[NOMBRE Y APELLIDOS], NIF [NIF]. Contacto: <a href="mailto:[EMAIL DE CONTACTO]">[EMAIL DE CONTACTO]</a>.</p>
+      <p>Rubén Pasamar Sánchez. Contacto: <a href="mailto:rubenpasamarsanchez@gmail.com">rubenpasamarsanchez@gmail.com</a>.</p>
 
       <h2>Qué datos guardamos</h2>
       <ul>
@@ -39,7 +39,7 @@ export default function Privacidad() {
       <p>Mientras mantengas tu cuenta. Si pides que la borremos, eliminamos tus datos en un plazo máximo de 30 días.</p>
 
       <h2>Tus derechos</h2>
-      <p>Puedes pedir acceso, rectificación, supresión, oposición, limitación y portabilidad escribiendo a <a href="mailto:[EMAIL DE CONTACTO]">[EMAIL DE CONTACTO]</a>. Si no quedas conforme, puedes reclamar ante la <a href="https://www.aepd.es" rel="noopener">Agencia Española de Protección de Datos</a>.</p>
+      <p>Puedes pedir acceso, rectificación, supresión, oposición, limitación y portabilidad escribiendo a <a href="mailto:rubenpasamarsanchez@gmail.com">rubenpasamarsanchez@gmail.com</a>. Si no quedas conforme, puedes reclamar ante la <a href="https://www.aepd.es" rel="noopener">Agencia Española de Protección de Datos</a>.</p>
 
       <h2>Cookies</h2>
       <p>Solo usamos las cookies técnicas imprescindibles para mantener tu sesión iniciada. No usamos cookies de analítica ni de publicidad.</p>

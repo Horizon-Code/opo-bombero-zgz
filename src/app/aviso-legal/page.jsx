@@ -13,7 +13,7 @@ export default function AvisoLegal() {
       <h1>Aviso legal</h1>
 
       <h2>Titular</h2>
-      <p>[NOMBRE Y APELLIDOS], NIF [NIF], con domicilio a efectos de notificaciones en [DIRECCIÓN]. Contacto: <a href="mailto:[EMAIL DE CONTACTO]">[EMAIL DE CONTACTO]</a>.</p>
+      <p>Rubén Pasamar Sánchez. Contacto: <a href="mailto:rubenpasamarsanchez@gmail.com">rubenpasamarsanchez@gmail.com</a>.</p>
 
       <h2>Objeto</h2>
       <p>Opo Bomberos Zaragoza es una herramienta de estudio para preparar la oposición de Bombero-Conductor del Ayuntamiento de Zaragoza. Es un proyecto independiente, sin relación con el Ayuntamiento ni con su Servicio contra Incendios, de Salvamento y Protección Civil.</p>
