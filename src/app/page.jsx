@@ -4,6 +4,7 @@ import s from "./landing.module.css";
 import estructura from "../data/estructura.json";
 import { Insignia } from "../components/Insignia";
 import { Cabecera, Pie } from "../components/Publica";
+import Camiseta from "../components/Camiseta";
 import { SITE } from "../lib/site";
 
 const TITULOS = {
@@ -28,6 +29,7 @@ const FAQ = [
   ["¿Cuántos temas tiene la oposición de bombero de Zaragoza?", "40 temas: 8 de legislación (Parte I) y 32 técnicos (Parte II), según el Anexo I de la convocatoria publicada en el BOPZ núm. 170, de 27 de julio de 2026."],
   ["¿Es una web oficial?", "No. Es un proyecto independiente, sin relación con el Ayuntamiento de Zaragoza. Las bases y las fechas oficiales se publican en el Boletín Oficial de la Provincia de Zaragoza y en la sede electrónica del Ayuntamiento."],
   ["¿Se guarda mi progreso si cambio de dispositivo?", "Sí. Tu avance se guarda en tu cuenta: puedes hacer un test en el móvil y verlo en el ordenador."],
+  ["¿Cómo consigo la camiseta de Opo Bomberos?", "Elige el color y la talla en la sección «La camiseta del opositor» y pulsa «¿La quieres? Escríbeme»: se abre tu correo con el pedido ya escrito. Te contesto con el precio, la disponibilidad y la entrega en Zaragoza o el envío."],
 ];
 
 const jsonLd = {
@@ -144,6 +146,10 @@ export default function Landing() {
             <div className={s.prueba} style={{ borderTopColor: "#2E5E73" }}><h3>Natación 100 m</h3><p>El 10: menos de <strong>1:00</strong></p></div>
             <div className={s.prueba} style={{ borderTopColor: "#F5B700" }}><h3>Cuerda lisa 6 m</h3><p>El 10: <strong>5,00 s</strong> o menos</p></div>
           </div>
+        </section>
+
+        <section id="camiseta" aria-labelledby="h-camiseta" className={`${s.wrap} ${s.section}`}>
+          <Camiseta />
         </section>
 
         <section id="preguntas-frecuentes" aria-labelledby="h-faq" className={`${s.wrap} ${s.section}`}>
