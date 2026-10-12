@@ -425,13 +425,14 @@ function SenalarPregunta({ preguntaId, user, senaladas, onSenalada }) {
   const ya = senaladas?.has(preguntaId);
 
   const enviar = async () => {
-    if (!motivo || enviando) return;
+    if (enviando) return;
+    if (!motivo) { setAviso({ ok: false, texto: "Elige qué le pasa a la pregunta antes de enviar." }); return; }
     setEnviando(true); setAviso(null);
     try {
       await reportarPregunta({ preguntaId, motivo, comentario }, user.id);
       onSenalada?.(preguntaId);
       setAbierto(false); setMotivo(""); setComentario("");
-      setAviso({ ok: true, texto: "Gracias. La revisaremos y, si hay que corregirla, se cambiará para todos." });
+      setAviso({ ok: true, texto: "La revisaremos y, si hay que corregirla, se cambiará para todos." });
     } catch (e) {
       console.error("reportarPregunta:", e);
       setAviso({ ok: false, texto: "No se pudo enviar el aviso. Inténtalo de nuevo en un momento." });
@@ -448,14 +449,18 @@ function SenalarPregunta({ preguntaId, user, senaladas, onSenalada }) {
           ⚑ {ya ? "Señalada · cambiar el aviso" : "Señalar esta pregunta"}
         </button>
       )}
-      {aviso && <p role="status" style={{ fontSize: 13, margin: "4px 0 0", color: aviso.ok ? C.green : C.red }}>{aviso.texto}</p>}
+      {aviso?.ok && (
+        <div role="status" style={{ marginTop: 4, padding: "10px 12px", background: "#E6F2EA", borderLeft: `4px solid ${C.green}`, borderRadius: 4, fontSize: 14 }}>
+          <strong style={{ color: C.green }}>✓ Aviso enviado.</strong> {aviso.texto}
+        </div>
+      )}
       {abierto && (
         <div style={{ marginTop: 4, padding: 12, background: "#F4F6F7", border: `1px solid ${C.line}`, borderRadius: 5 }}>
           <fieldset style={{ border: "none", margin: 0, padding: 0 }}>
             <legend style={{ fontWeight: 600, fontSize: 14, marginBottom: 4, padding: 0 }}>¿Qué le pasa a esta pregunta?</legend>
             {MOTIVOS.map(([v, t]) => (
               <label key={v} style={etiqueta}>
-                <input type="radio" name={`motivo-${preguntaId}`} value={v} checked={motivo === v} onChange={() => setMotivo(v)} style={{ width: 16, height: 16, margin: 0 }} />
+                <input type="radio" name={`motivo-${preguntaId}`} value={v} checked={motivo === v} onChange={() => { setMotivo(v); setAviso(null); }} style={{ width: 16, height: 16, margin: 0 }} />
                 {t}
               </label>
             ))}
@@ -464,11 +469,12 @@ function SenalarPregunta({ preguntaId, user, senaladas, onSenalada }) {
             aria-label="Comentario (opcional)" placeholder="Cuéntanos qué has visto (opcional)"
             style={{ ...inputStyle, width: "100%", boxSizing: "border-box", marginTop: 8, resize: "vertical" }} />
           <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
-            <button onClick={enviar} disabled={!motivo || enviando} style={{ ...btnStyle(), padding: "6px 14px", fontSize: 13, opacity: !motivo || enviando ? 0.45 : 1 }}>
+            <button onClick={enviar} disabled={enviando} style={{ ...btnStyle(), padding: "6px 14px", fontSize: 13, opacity: enviando ? 0.6 : 1 }}>
               {enviando ? "Enviando…" : "Enviar aviso"}
             </button>
-            <button onClick={() => setAbierto(false)} style={{ ...btnStyle("transparent", C.inkSoft), border: `1px solid ${C.line}`, padding: "6px 14px", fontSize: 13 }}>Cancelar</button>
+            <button onClick={() => { setAbierto(false); setAviso(null); }} style={{ ...btnStyle("transparent", C.inkSoft), border: `1px solid ${C.line}`, padding: "6px 14px", fontSize: 13 }}>Cancelar</button>
           </div>
+          {aviso && !aviso.ok && <p role="alert" style={{ fontSize: 13, margin: "8px 0 0", color: C.red }}>{aviso.texto}</p>}
         </div>
       )}
     </div>
