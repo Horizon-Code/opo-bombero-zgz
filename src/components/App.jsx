@@ -218,6 +218,8 @@ function Panel({ progreso, resultados, irATemario }) {
         ))}
       </div>
 
+      <AvisoCamiseta />
+
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 14 }}>
         <Card>
           <H2>Temas que piden refuerzo</H2>
@@ -257,6 +259,39 @@ function Panel({ progreso, resultados, irATemario }) {
         </Card>
       </div>
     </div>
+  );
+}
+
+
+/* ============ AVISO DE LA CAMISETA (Panel) ============ */
+// Se puede ocultar; se recuerda en este navegador.
+function AvisoCamiseta() {
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    try { setVisible(localStorage.getItem("avisoCamisetaOculto") !== "1"); } catch { setVisible(true); }
+  }, []);
+  if (!visible) return null;
+  const ocultar = () => {
+    setVisible(false);
+    try { localStorage.setItem("avisoCamisetaOculto", "1"); } catch {}
+  };
+  return (
+    <section aria-label="Camiseta Opo Bomberos" style={{ background: C.ink, color: "#fff", borderRadius: 6, overflow: "hidden", display: "flex", alignItems: "stretch", flexWrap: "wrap" }}>
+      <div aria-hidden="true" style={{ width: 10, flex: "0 0 10px", background: `repeating-linear-gradient(135deg, ${C.yellow} 0 10px, ${C.ink} 10px 20px)` }} />
+      <img src="/camiseta/camiseta-gris.webp" alt="Camiseta Opo Bomberos, delante y detrás" width="140" height="140" style={{ width: 140, height: 140, objectFit: "cover", display: "block", background: C.bg }} />
+      <div style={{ flex: "1 1 280px", minWidth: 0, padding: "16px 20px", display: "flex", flexWrap: "wrap", alignItems: "center", gap: "12px 20px" }}>
+        <div style={{ flex: "1 1 260px", minWidth: 0 }}>
+          <div style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 24, textTransform: "uppercase", lineHeight: 1 }}>
+            Ya está la <span style={{ color: C.yellow }}>camiseta</span> de Opo Bomberos
+          </div>
+          <div style={{ fontSize: 14, color: "#C8CED3", marginTop: 6 }}>La insignia delante y Zaragoza detrás, en 6 colores. Para entrenar las físicas o para el día del examen.</div>
+        </div>
+        <a href="/#camiseta" style={{ display: "inline-flex", alignItems: "center", minHeight: 44, padding: "0 18px", borderRadius: 6, background: C.red, color: "#fff", textDecoration: "none", fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 18, letterSpacing: 1, textTransform: "uppercase" }}>Verla</a>
+        <button type="button" onClick={ocultar} aria-label="Ocultar este aviso" style={{ minWidth: 44, minHeight: 44, background: "transparent", border: "1px solid #3A4046", borderRadius: 6, color: "#C8CED3", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+        </button>
+      </div>
+    </section>
   );
 }
 

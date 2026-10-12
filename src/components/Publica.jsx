@@ -16,6 +16,7 @@ export function Cabecera({ enLanding = false }) {
           <a href={ancla("como-funciona")}>Cómo funciona</a>
           <a href={ancla("simulacro")}>Simulacro</a>
           <a href={ancla("temario")}>Temario</a>
+          <a href={ancla("camiseta")}>Camiseta</a>
           <a href={ancla("preguntas-frecuentes")}>Preguntas frecuentes</a>
         </div>
         <a href="/app" className={s.btnLight}>Entrar</a>
@@ -39,6 +40,7 @@ export function Pie() {
           <p style={{ color: "#9AA3AA", fontSize: 13 }}>Parte del contenido se basa en manuales del CEIS Guadalajara y Grupo Tragsa (licencia CC BY-NC-SA 4.0), del IVASPE y de la Escuela de Bomberos de Zaragoza, y en normativa publicada en el BOE, el BOA y el BOPZ. Detalle en «Fuentes y licencias».</p>
         </div>
         <nav aria-label="Legal" className={s.footNav}>
+          <a href="/#camiseta">La camiseta</a>
           <a href="/fuentes">Fuentes y licencias</a>
           <a href="/privacidad">Política de privacidad</a>
           <a href="/aviso-legal">Aviso legal</a>
