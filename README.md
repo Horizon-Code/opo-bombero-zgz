@@ -54,6 +54,13 @@ node scripts/generar-estructura.mjs /mnt/c/Users/ruben/Downloads/corpus-bombero
 node scripts/marcar-combinadas.mjs /mnt/c/Users/ruben/Downloads/corpus-bombero/banco   # preguntas con «a) y b) son correctas» y similares
 ```
 
+Calidad de las explicaciones (lo que ve el alumno al fallar, junto a la cita del temario). Una explicación que repite la opción correcta o la cita no enseña nada; la buena sitúa el dato y dice por qué fallan las otras dos opciones:
+```bash
+node scripts/auditar-explicaciones.mjs <carpeta banco> [detalle.csv]      # marca las flojas (eco, cortas, sin contraste)
+node scripts/aplicar-explicaciones.mjs <banco> <carpeta reescrituras> <banco nuevo>   # valida y aplica reescrituras {id: explicación}
+```
+`aplicar` solo cambia el campo `explicacion` (mismos ids), rechaza las propuestas que no pasan la validación y deja `cambios.csv` y `rechazadas.csv` en la carpeta nueva.
+
 ### 4. Local
 ```bash
 cp .env.example .env.local   # rellena las 2 variables
