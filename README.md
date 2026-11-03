@@ -34,7 +34,7 @@ Sin IA ni API de pago: el temario es fijo y las preguntas salen del corpus (`cor
 
 ### 1. Supabase
 1. Crea un proyecto en https://supabase.com (el plan gratuito sirve).
-2. SQL Editor → ejecuta, en orden, `supabase/schema.sql`, `migracion_2.sql`, `migracion_3.sql` y `migracion_4.sql` (si ya tenías la app, basta con la 4).
+2. SQL Editor → ejecuta, en orden, `supabase/schema.sql` y de `migracion_2.sql` a `migracion_6.sql` (si ya tenías la app, solo las que te falten).
 3. Project Settings → API: copia la **URL**, la **anon key** y la **service role key** (esta última solo para cargar el banco, nunca en Vercel ni en git).
 
 ### 2. Login con Google
@@ -65,6 +65,10 @@ npm run dev                  # http://localhost:3000
 2. En https://vercel.com → New Project → importa el repo.
 3. Añade las 2 variables de entorno (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`).
 4. Deploy. Añade el dominio de Vercel a las Redirect URLs de Supabase (paso 2.4).
+
+## Avisos de los usuarios y copias de seguridad
+- **Avisos**: cada usuario puede señalar una pregunta, proponer la respuesta y decir de dónde lo saca; ve el estado en «Mis avisos» y recibe «Tu aviso ha servido» cuando se resuelve. Cómo revisarlos y corregir preguntas: [`docs/REVISION.md`](docs/REVISION.md).
+- **Backups**: copia diaria cifrada con GitHub Actions. Puesta en marcha y restauración: [`docs/BACKUPS.md`](docs/BACKUPS.md).
 
 ## Seguridad ya incluida
 - **RLS en todas las tablas**: cada usuario solo lee y escribe su progreso, resultados, marcas y diario.

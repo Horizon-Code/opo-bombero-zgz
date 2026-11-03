@@ -8,8 +8,9 @@ import {
   supabase, logout,
   getResultados,
   getMarcas, addMarca, delMarca, getObjetivos, setObjetivo as dbSetObjetivo,
-  getProgreso,
+  getProgreso, getMisAvisos,
 } from "../lib/supabase";
+import { AvisosResueltos } from "./Avisos";
 import { Temario, useEstadoTemas } from "./Temario";
 import { Insignia, Marca } from "./Insignia";
 import EntrarConGoogle from "./EntrarConGoogle";
@@ -59,6 +60,11 @@ export default function App() {
   const [marcas, setMarcas] = useState([]);
   const [objetivos, setObjetivos] = useState({});
   const [progreso, setProgreso] = useState({});
+  const [avisos, setAvisos] = useState([]);           // avisos del usuario sobre preguntas (los suyos)
+  const [vistaTests, setVistaTests] = useState("temario"); // "temario" | "avisos"
+  const onAviso = (fila) => setAvisos((as) => [fila, ...as.filter((a) => a.pregunta_id !== fila.pregunta_id)]);
+  const onVistos = (ids) => setAvisos((as) => as.map((a) => (ids.includes(a.id) ? { ...a, visto_at: new Date().toISOString() } : a)));
+  const verMisAvisos = () => { setTab("tests"); setVistaTests("avisos"); window.scrollTo({ top: 0 }); };
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data.user || null));
@@ -89,6 +95,7 @@ export default function App() {
         if (cancelado) return;
         setResultados(r); setMarcas(m); setObjetivos(o); setProgreso(pg);
         setReady(true);
+        getMisAvisos().then((a) => { if (!cancelado) setAvisos(a); }); // no bloquea la carga si falla
       } catch (e) {
         console.error("Carga inicial:", e);
         if (!cancelado) setErrorCarga(true);
@@ -157,15 +164,22 @@ export default function App() {
       <div style={hazard(8)} />
       <nav style={{ maxWidth: 1000, margin: "0 auto", display: "flex", gap: 6, padding: "14px 16px 0", flexWrap: "wrap" }}>
         {[["panel", "Panel"], ["tests", "Temario y tests"], ["fisico", "Pruebas físicas"]].map(([id, label]) => (
-          <button key={id} onClick={() => setTab(id)}
+          <button key={id} onClick={() => { setTab(id); if (id === "tests") setVistaTests("temario"); }}
             style={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 16, letterSpacing: 1, textTransform: "uppercase", padding: "8px 18px", border: `2px solid ${C.ink}`, background: tab === id ? C.ink : "transparent", color: tab === id ? C.yellow : C.ink, borderRadius: 4 }}>
             {label}
           </button>
         ))}
       </nav>
       <main style={{ maxWidth: 1000, margin: "0 auto", padding: "18px 16px 60px" }}>
-        {tab === "panel" && <Panel progreso={progreso} resultados={resultados} irATemario={() => setTab("tests")} />}
-        {tab === "tests" && <Temario user={user} progreso={progreso} setProgreso={setProgreso} resultados={resultados} setResultados={setResultados} />}
+        <AvisosRevision />
+        {tab === "panel" && (
+          <Panel progreso={progreso} resultados={resultados} irATemario={() => setTab("tests")}
+            avisosResueltos={<AvisosResueltos avisos={avisos} onVer={verMisAvisos} onVistos={onVistos} />} />
+        )}
+        {tab === "tests" && (
+          <Temario user={user} progreso={progreso} setProgreso={setProgreso} resultados={resultados} setResultados={setResultados}
+            avisos={avisos} onAviso={onAviso} onVistos={onVistos} vista={vistaTests} setVista={setVistaTests} />
+        )}
         {tab === "fisico" && <FisicoProximamente />}
       </main>
     </div>
@@ -173,7 +187,7 @@ export default function App() {
 }
 
 /* ============ PANEL ============ */
-function Panel({ progreso, resultados, irATemario }) {
+function Panel({ progreso, resultados, irATemario, avisosResueltos }) {
   // Todo sale de lo que ya registra la app: tests hechos y progreso por pregunta (nada a mano)
   const diasConEstudio = new Set([
     ...resultados.map((r) => String(r.fecha)),
@@ -204,6 +218,7 @@ function Panel({ progreso, resultados, irATemario }) {
 
   return (
     <div style={{ display: "grid", gap: 14 }}>
+      {avisosResueltos}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10 }}>
         {[
           { label: "Racha de estudio", value: `${racha} d`, color: C.red },
@@ -265,6 +280,56 @@ function Panel({ progreso, resultados, irATemario }) {
 
 /* ============ AVISO DE LA CAMISETA (Panel) ============ */
 // Se puede ocultar; se recuerda en este navegador.
+/* ============ AVISOS · revisión de respuestas (noviembre 2026) ============ */
+// Dos avisos independientes, cada uno con su propio cierre:
+// · «Revisamos las respuestas»: informa de que el banco está cambiando (hasta el 30/11/2026).
+// · «Ayúdanos a mejorarlas»: pide señalar las preguntas dudosas con la fuente (sin fecha de fin).
+// En escritorio salen uno al lado del otro; en móvil, uno debajo del otro.
+const AVISOS_REVISION = [
+  {
+    clave: "avisoRevision202611Oculto",
+    hasta: "2026-11-30",
+    acento: C.yellow,
+    titulo: <>Este mes revisamos <span style={{ color: C.red }}>las respuestas</span></>,
+    texto: "Estamos corrigiendo preguntas y explicaciones del banco. Puede que alguna cambie mientras estudias; tu progreso no se pierde.",
+  },
+  {
+    clave: "avisoAyudaSenalarOculto",
+    hasta: null,
+    acento: C.steel,
+    titulo: <>Ayúdanos a <span style={{ color: C.steel }}>mejorar las respuestas</span></>,
+    texto: "Si una pregunta te parece mal, pulsa «⚑\u00A0Señalar esta pregunta» al corregirla y dinos dónde lo has leído (ley y artículo, o manual y página). Leemos todos los avisos.",
+  },
+];
+
+function AvisosRevision() {
+  const [visibles, setVisibles] = useState([]);
+  useEffect(() => {
+    const leer = (k) => { try { return localStorage.getItem(k) === "1"; } catch { return false; } };
+    setVisibles(AVISOS_REVISION.filter((a) => (!a.hasta || hoy() <= a.hasta) && !leer(a.clave)).map((a) => a.clave));
+  }, []);
+  if (!visibles.length) return null;
+  const ocultar = (clave) => {
+    setVisibles((v) => v.filter((k) => k !== clave));
+    try { localStorage.setItem(clave, "1"); } catch {}
+  };
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 10, marginBottom: 14 }}>
+      {AVISOS_REVISION.filter((a) => visibles.includes(a.clave)).map((a) => (
+        <section key={a.clave} role="status" style={{ background: C.panel, border: `1px solid ${C.line}`, borderLeft: `6px solid ${a.acento}`, borderRadius: 6, padding: "12px 12px 12px 16px", display: "flex", alignItems: "flex-start", gap: 12 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 18, letterSpacing: 0.5, textTransform: "uppercase", lineHeight: 1.1 }}>{a.titulo}</div>
+            <div style={{ fontSize: 14, color: C.inkSoft, marginTop: 4 }}>{a.texto}</div>
+          </div>
+          <button type="button" onClick={() => ocultar(a.clave)} aria-label="Ocultar este aviso" style={{ minWidth: 44, minHeight: 44, flexShrink: 0, background: "transparent", border: `1px solid ${C.line}`, borderRadius: 6, color: C.inkSoft, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+          </button>
+        </section>
+      ))}
+    </div>
+  );
+}
+
 function AvisoCamiseta() {
   const [visible, setVisible] = useState(false);
   useEffect(() => {
