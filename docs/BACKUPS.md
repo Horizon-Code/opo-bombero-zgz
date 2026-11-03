@@ -14,7 +14,8 @@ Comprimido y cifrado ocupa unos pocos MB.
 ## Puesta en marcha (una vez)
 1. Supabase → botón **Connect** → pestaña *Connection string* → **Session pooler** → copia la URI
    (`postgresql://postgres.trmogvhslmtcsezrdxxl:[YOUR-PASSWORD]@aws-…pooler.supabase.com:5432/postgres`)
-   y sustituye `[YOUR-PASSWORD]` por la contraseña de la base de datos
+   y sustituye `[YOUR-PASSWORD]` (con los corchetes) por la contraseña de la base de datos.
+   Puede llevar símbolos sin codificar: el workflow separa la contraseña y nunca la pone en la línea de conexión
    (si no la recuerdas: Project Settings → Database → *Reset database password*).
    > Usa el *Session pooler*, no la conexión directa: en el plan gratuito la directa es solo IPv6 y GitHub no llega.
 2. GitHub → repo → Settings → Secrets and variables → Actions → **New repository secret**:
