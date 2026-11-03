@@ -56,15 +56,38 @@ jobs:
         run: |
           set -euo pipefail
           umask 077
+          # La URL se separa en variables PG* para que la contraseña NUNCA vaya en la línea de conexión:
+          # si pg_dump falla, su error solo muestra host y usuario. Se corta por la ÚLTIMA «@», así que
+          # funciona aunque la contraseña lleve «@» u otros símbolos sin codificar.
+          eval "$(python3 - <<'PY'
+          import os, shlex, urllib.parse as up
+          url = os.environ["SUPABASE_DB_URL"].strip()
+          esquema, _, resto = url.partition("://")
+          if esquema not in ("postgres", "postgresql") or "@" not in resto:
+              print('echo "::error::SUPABASE_DB_URL no tiene el formato postgresql://usuario:contraseña@host:puerto/base"; exit 1')
+              raise SystemExit
+          cred, _, hostpart = resto.rpartition("@")
+          usuario, _, clave = cred.partition(":")
+          hostport, _, base = hostpart.partition("/")
+          host, _, puerto = hostport.partition(":")
+          clave = up.unquote(clave)
+          for v in {clave, cred}:
+              if v:
+                  print(f"echo {shlex.quote('::add-mask::' + v)}")
+          env = {"PGHOST": host, "PGPORT": puerto or "5432", "PGDATABASE": (base.split("?")[0] or "postgres"),
+                 "PGUSER": up.unquote(usuario), "PGPASSWORD": clave, "PGSSLMODE": "require"}
+          for k, v in env.items():
+              print(f"export {k}={shlex.quote(v)}")
+          PY
+          )"
           PGD=/usr/lib/postgresql/17/bin/pg_dump
           mkdir -p dump
           # 1) esquema public completo con todos sus datos
-          $PGD "$SUPABASE_DB_URL" --schema=public --no-owner --no-privileges \
-            --file=dump/public.sql
+          $PGD --schema=public --no-owner --no-privileges --file=dump/public.sql
           # el schema public ya existe en cualquier proyecto de Supabase: quitar su CREATE para restaurar sin errores
           sed -i '/^CREATE SCHEMA public;$/d' dump/public.sql
           # 2) cuentas de usuario (solo datos: el esquema auth lo crea Supabase)
-          $PGD "$SUPABASE_DB_URL" --data-only --no-owner --no-privileges \
+          $PGD --data-only --no-owner --no-privileges \
             --table=auth.users --table=auth.identities \
             --file=dump/auth.sql
           # comprobación mínima: que estén las tablas clave (sin mostrar contenido)
