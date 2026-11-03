@@ -74,23 +74,64 @@ export const getProgreso = async () => {
   }
   return Object.fromEntries(filas.map((r) => [r.pregunta_id, r]));
 };
-/* ---------- preguntas señaladas por el usuario ---------- */
-// Un aviso por persona y pregunta: si la vuelve a señalar, se actualiza y queda pendiente otra vez.
-export const reportarPregunta = async ({ preguntaId, motivo, comentario }, userId) => {
-  const { error } = await supabase.from("reportes_preguntas").upsert(
-    {
-      user_id: userId, pregunta_id: preguntaId, motivo,
-      comentario: comentario?.trim() ? comentario.trim().slice(0, 1000) : null,
-      estado: "pendiente", updated_at: new Date().toISOString(),
-    },
-    { onConflict: "user_id,pregunta_id" }
-  );
+/* ---------- avisos: preguntas señaladas por el usuario ---------- */
+// Un aviso por persona y pregunta: si la vuelve a señalar, se actualiza y queda pendiente otra vez
+// (un trigger de la migración 6 limpia la respuesta del revisor anterior).
+export const reportarPregunta = async ({ preguntaId, motivo, comentario, opcionPropuesta, fuenteTipo, fuenteRef, fuenteUrl }, userId) => {
+  const limpio = (t, max) => (t?.trim() ? t.trim().slice(0, max) : null);
+  const base = {
+    user_id: userId, pregunta_id: preguntaId, motivo,
+    comentario: limpio(comentario, 1000),
+    estado: "pendiente", updated_at: new Date().toISOString(),
+  };
+  const conFuente = {
+    ...base,
+    opcion_propuesta: motivo === "respuesta_incorrecta" && opcionPropuesta != null ? opcionPropuesta : null,
+    fuente_tipo: limpio(fuenteRef, 200) || limpio(fuenteUrl, 500) ? fuenteTipo || "otra" : null,
+    fuente_ref: limpio(fuenteRef, 200),
+    fuente_url: limpio(fuenteUrl, 500),
+  };
+  const tabla = supabase.from("reportes_preguntas");
+  let { data, error } = await tabla.upsert(conFuente, { onConflict: "user_id,pregunta_id" }).select(CAMPOS_AVISO).single();
+  // Sin la migración 6 (columnas nuevas) se guarda lo básico, como antes
+  if (error && /column|schema cache|violates check/i.test(error.message || "")) {
+    const extra = [
+      conFuente.opcion_propuesta != null && `Propone la ${"abc"[conFuente.opcion_propuesta]})`,
+      conFuente.fuente_ref && `Fuente: ${conFuente.fuente_ref}`,
+      conFuente.fuente_url,
+    ].filter(Boolean).join(" · ");
+    const comentarioPlano = [base.comentario, extra].filter(Boolean).join("\n").slice(0, 1000) || null;
+    ({ data, error } = await supabase.from("reportes_preguntas")
+      .upsert({ ...base, motivo: motivo === "explicacion" ? "otro" : motivo, comentario: comentarioPlano }, { onConflict: "user_id,pregunta_id" })
+      .select("id,pregunta_id,motivo,comentario,estado,created_at,updated_at").single());
+  }
   if (error) throw error;
+  return data;
 };
-export const getMisReportes = async () => {
-  const { data, error } = await supabase.from("reportes_preguntas").select("pregunta_id");
-  if (error) { console.error("getMisReportes:", error); return new Set(); }
-  return new Set((data || []).map((r) => r.pregunta_id));
+const CAMPOS_AVISO =
+  "id,pregunta_id,motivo,comentario,opcion_propuesta,fuente_tipo,fuente_ref,fuente_url,estado,respuesta_revisor,resuelto_at,visto_at,created_at,updated_at";
+// Todos los avisos del usuario (RLS: solo los suyos). Si la migración 6 no está aplicada, cae a lo básico.
+export const getMisAvisos = async () => {
+  let { data, error } = await supabase.from("reportes_preguntas").select(CAMPOS_AVISO).order("created_at", { ascending: false });
+  if (error) {
+    ({ data, error } = await supabase.from("reportes_preguntas").select("id,pregunta_id,motivo,comentario,estado,created_at,updated_at").order("created_at", { ascending: false }));
+  }
+  if (error) { console.error("getMisAvisos:", error); return []; }
+  return data || [];
+};
+export const marcarAvisosVistos = async (ids) => {
+  if (!ids.length) return;
+  const { error } = await supabase.rpc("marcar_avisos_vistos", { ids });
+  if (error) console.error("marcarAvisosVistos:", error);
+};
+// Registro de correcciones del banco (lectura para cualquier usuario con sesión)
+export const getCorrecciones = async ({ preguntaIds, limite = 30 } = {}) => {
+  let q = supabase.from("correcciones").select("id,pregunta_id,campo,antes,despues,fuente_ref,created_at").order("created_at", { ascending: false });
+  if (preguntaIds) q = q.in("pregunta_id", preguntaIds.slice(0, 150));
+  else q = q.limit(limite);
+  const { data, error } = await q;
+  if (error) { console.error("getCorrecciones:", error); return []; }
+  return data || [];
 };
 
 export const guardarProgreso = async (filas, userId) => {

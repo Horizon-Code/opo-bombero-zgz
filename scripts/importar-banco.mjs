@@ -1,5 +1,6 @@
 // Sube el banco de preguntas (corpus-bombero/banco/tema-NN.json) a la tabla
-// public.banco_preguntas de Supabase. Se puede repetir: hace upsert por id.
+// public.banco_preguntas de Supabase. Se puede repetir: hace upsert por id,
+// salvo en las preguntas corregidas a mano desde Supabase (editada_at), que no se tocan.
 //
 // Uso (desde la raíz del repo, después de ejecutar supabase/migracion_4.sql):
 //   SUPABASE_SERVICE_ROLE_KEY=eyJ... node scripts/importar-banco.mjs <carpeta banco>
@@ -28,9 +29,24 @@ const sb = createClient(url, key, { auth: { persistSession: false } });
 const ficheros = fs.readdirSync(dir).filter((f) => /^tema-\d\d\.json$/.test(f)).sort();
 if (!ficheros.length) { console.error(`No hay tema-NN.json en ${dir}`); process.exit(1); }
 
-let total = 0;
+// Preguntas corregidas a mano en Supabase (resolver_pregunta, migración 6): NO se pisan.
+// Para que el corpus mande otra vez sobre una de ellas: update banco_preguntas set editada_at = null where id = '…';
+const editadas = new Set();
+for (let desde = 0; ; desde += 1000) {
+  const { data, error } = await sb.from("banco_preguntas").select("id").not("editada_at", "is", null).range(desde, desde + 999);
+  if (error) {
+    if (/editada_at/.test(error.message)) break; // sin migración 6: no hay preguntas editadas
+    console.error(`Leyendo preguntas editadas: ${error.message}`); process.exit(1);
+  }
+  data.forEach((r) => editadas.add(r.id));
+  if (data.length < 1000) break;
+}
+if (editadas.size) console.log(`Se respetan ${editadas.size} preguntas corregidas a mano (no se sobrescriben).`);
+
+let total = 0, saltadas = 0;
 for (const f of ficheros) {
-  const filas = JSON.parse(fs.readFileSync(path.join(dir, f), "utf8")).map((q) => ({
+  const todas = JSON.parse(fs.readFileSync(path.join(dir, f), "utf8"));
+  const filas = todas.filter((q) => !editadas.has(q.id)).map((q) => ({
     id: q.id, tema: q.tema, nodo: q.nodo, bloque: q.bloque_id, tambien_en: q.tambien_en || [],
     tipo: q.tipo, dificultad: q.dificultad, pregunta: q.pregunta, opciones: q.opciones,
     correcta: q.correcta, explicacion: q.explicacion || null, cita: q.cita || null,
@@ -40,7 +56,8 @@ for (const f of ficheros) {
     if (error) { console.error(`${f}: ${error.message}`); process.exit(1); }
   }
   total += filas.length;
-  console.log(`${f}: ${filas.length}`);
+  saltadas += todas.length - filas.length;
+  console.log(`${f}: ${filas.length}${todas.length > filas.length ? ` (${todas.length - filas.length} corregidas a mano, sin tocar)` : ""}`);
 }
 const { count } = await sb.from("banco_preguntas").select("id", { count: "exact", head: true });
-console.log(`Subidas ${total} preguntas. En la tabla hay ${count}.`);
+console.log(`Subidas ${total} preguntas${saltadas ? ` (+${saltadas} corregidas a mano sin tocar)` : ""}. En la tabla hay ${count}.`);
