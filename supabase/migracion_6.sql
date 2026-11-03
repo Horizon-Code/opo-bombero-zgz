@@ -28,7 +28,7 @@ alter table public.reportes_preguntas add constraint reportes_preguntas_motivo_c
 -- Desde la app (roles anon/authenticated) el usuario no puede escribir los campos del revisor.
 -- Si vuelve a enviar un aviso ya resuelto, es un aviso nuevo: se limpia la respuesta anterior.
 create or replace function public.reportes_proteger_campos_revisor()
-returns trigger language plpgsql as $$
+returns trigger language plpgsql set search_path = public as $$
 begin
   if current_user in ('anon', 'authenticated') then
     new.respuesta_revisor := null;
