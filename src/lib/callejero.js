@@ -2,6 +2,7 @@
 // Las preguntas no se guardan en ningún sitio: se generan en el momento a partir de la tabla
 // oficial CALLE / ENTRADA / SALIDA y de la lista de polígonos, con 3 opciones como el examen.
 import datos from "../data/callejero.json";
+import { TIPOS_RECORRIDO, preguntasRecorridos } from "./recorridos";
 
 export const CALLES = datos.calles;        // [{ id, calle, entrada, salida }]
 export const POLIGONOS = datos.poligonos;  // [{ id, nombre, situacion }]
@@ -316,6 +317,7 @@ function ruta(camino, rnd) {
 export const TIPOS_CALLE = ["entrada", "salida", "tramo"];
 export const TIPOS_RELACION = ["conecta", "intrusa", "cadena", "enlace", "ruta"];
 export const TIPOS_POLIGONO = ["poligono", "poligono_inv"];
+export { TIPOS_RECORRIDO };
 export const itemPorId = Object.fromEntries([...CALLES, ...POLIGONOS].map((x) => [x.id, x]));
 
 // Todas las preguntas posibles (para validar y para las estadísticas)
@@ -331,6 +333,8 @@ export function todasLasPreguntas(rnd = Math.random, tipos = null) {
   if (quiero("cadena")) for (const c of CALLES) { const q = cadena(c, rnd); if (q) out.push(q); }
   if (quiero("enlace")) for (const e of ENLACES) { const q = enlace(e, rnd); if (q) out.push(q); }
   if (quiero("ruta")) for (const r of RUTAS) { const q = ruta(r, rnd); if (q) out.push(q); }
+  const rec = TIPOS_RECORRIDO.filter(quiero);
+  if (rec.length) out.push(...preguntasRecorridos(rnd, rec));
   return out;
 }
 
@@ -344,8 +348,9 @@ function peso(p, criterio) {
   return p.aciertos < p.vistas ? 2 : 1;
 }
 
-// Elige n preguntas de los tipos pedidos, sin repetir calle o polígono en el mismo test
-export function elegirPreguntas({ n = 20, tipos = [...TIPOS_CALLE, ...TIPOS_RELACION, ...TIPOS_POLIGONO], criterio = "inteligente", progreso = {} }) {
+// Elige n preguntas de los tipos pedidos, sin repetir calle, polígono ni recorrido en el mismo test
+// (dos preguntas del mismo recorrido se chivarían la respuesta la una a la otra)
+export function elegirPreguntas({ n = 20, tipos = [...TIPOS_CALLE, ...TIPOS_RELACION, ...TIPOS_POLIGONO, ...TIPOS_RECORRIDO], criterio = "inteligente", progreso = {} }) {
   const candidatas = todasLasPreguntas(Math.random, tipos);
   const puntuadas = candidatas
     .map((q) => ({ q, w: peso(progreso[q.id], criterio) }))
@@ -355,8 +360,9 @@ export function elegirPreguntas({ n = 20, tipos = [...TIPOS_CALLE, ...TIPOS_RELA
   const items = new Set(), out = [];
   for (const { q } of puntuadas) {
     if (out.length >= n) break;
-    if (items.has(q.item)) continue;
-    items.add(q.item); out.push(q);
+    const clave = q.recorrido || q.item;
+    if (items.has(clave)) continue;
+    items.add(clave); out.push(q);
   }
   return barajar(out);
 }

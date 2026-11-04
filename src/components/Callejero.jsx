@@ -7,9 +7,10 @@ import { Quiz, Resultado } from "./Temario";
 import { addResultado, guardarProgresoCallejero } from "../lib/supabase";
 import { corregir } from "../lib/banco";
 import {
-  CALLES, POLIGONOS, NO_TIENE, TIPOS_CALLE, TIPOS_RELACION, TIPOS_POLIGONO, norm, txt,
+  CALLES, POLIGONOS, NO_TIENE, TIPOS_CALLE, TIPOS_RELACION, TIPOS_POLIGONO, TIPOS_RECORRIDO, norm, txt,
   elegirPreguntas, simulacroCallejero, estadoItems, todasLasPreguntas,
 } from "../lib/callejero";
+import { RECORRIDOS, FUENTE_RECORRIDOS } from "../lib/recorridos";
 
 const fmtN = (n) => n.toLocaleString("es-ES");
 const TOTAL_PREGUNTAS = todasLasPreguntas().length;
@@ -23,6 +24,7 @@ const QUE = {
   calles: { tipos: TIPOS_CALLE, titulo: "Calles" },
   relaciones: { tipos: TIPOS_RELACION, titulo: "Unir calles" },
   poligonos: { tipos: TIPOS_POLIGONO, titulo: "Polígonos" },
+  recorridos: { tipos: TIPOS_RECORRIDO, titulo: "Recorridos" },
   todo: { tipos: [...TIPOS_CALLE, ...TIPOS_RELACION, ...TIPOS_POLIGONO], titulo: "Todo el Anexo" },
 };
 
@@ -55,6 +57,7 @@ export function Callejero({ user, progreso, setProgreso, resultados, setResultad
   const falladas = Object.entries(progreso).filter(([, p]) => p.ultimo_resultado === false).length;
   const callesDominadas = CALLES.filter((c) => porItem[c.id]?.vistas && !porItem[c.id].fallada).length;
   const polDominados = POLIGONOS.filter((p) => porItem[p.id]?.vistas && !porItem[p.id].fallada).length;
+  const recDominados = RECORRIDOS.filter((r) => porItem[r.id]?.vistas && !porItem[r.id].fallada).length;
 
   function empezar(preguntas, { titulo, modo: m = modo, limite = m === "examen" ? preguntas.length * 36 : null }) {
     setAviso("");
@@ -62,7 +65,10 @@ export function Callejero({ user, progreso, setProgreso, resultados, setResultad
     setQuiz({ titulo, modo: m, limite, origen: "callejero", preguntas, inicio: Date.now() });
     window.scrollTo({ top: 0 });
   }
-  const test = () => empezar(elegirPreguntas({ n, tipos: QUE[que].tipos, criterio, progreso }), { titulo: `Callejero · ${QUE[que].titulo} · ${n} preguntas` });
+  const test = () => {
+    const qs = elegirPreguntas({ n, tipos: QUE[que].tipos, criterio, progreso });
+    empezar(qs, { titulo: `Callejero · ${QUE[que].titulo} · ${qs.length} preguntas` });
+  };
   const simulacro = () => empezar(simulacroCallejero(progreso), { titulo: "Simulacro de callejero · 50 preguntas · 30 minutos", modo: "examen", limite: 30 * 60 });
   const repasar = () => empezar(elegirPreguntas({ n, criterio: "falladas", progreso }), { titulo: `Callejero · repaso de falladas`, modo: "practica" });
 
@@ -100,6 +106,7 @@ export function Callejero({ user, progreso, setProgreso, resultados, setResultad
   const historial = resultados.filter((r) => r.origen === "callejero").slice(-5).reverse();
   const q = norm(buscar);
   const callesFiltradas = q ? CALLES.filter((c) => norm([c.calle, c.entrada, c.salida].flatMap((x) => [x, txt(x)]).join(" ")).includes(q)) : CALLES;
+  const recFiltrados = q ? RECORRIDOS.filter((r) => norm(`${r.desde} ${r.hasta} ${r.desdeDir} ${r.hastaDir} ${r.pasos.join(" ")}`).includes(q)) : RECORRIDOS;
   const polFiltrados = q ? POLIGONOS.filter((p) => norm(`${p.nombre} ${p.situacion} ${p.nombreTxt} ${p.situacionTxt}`).includes(q)) : POLIGONOS;
   const th = { textAlign: "left", fontFamily: FONT_DISPLAY, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", fontSize: 13, padding: "6px 8px", borderBottom: `2px solid ${C.ink}`, position: "sticky", top: 0, background: C.panel };
   const anexo = { fontSize: 11, fontWeight: 400, color: C.inkSoft, letterSpacing: 0.3 }; // cómo aparece en el Anexo III
@@ -112,8 +119,8 @@ export function Callejero({ user, progreso, setProgreso, resultados, setResultad
           Estamos <span style={{ color: C.red }}>mejorando el callejero</span>
         </div>
         <div style={{ fontSize: 14, color: C.inkSoft, marginTop: 4 }}>
-          De momento puedes aprender el Anexo III: la entrada y la salida de cada calle, cómo se unen unas con otras y dónde está cada polígono.
-          Pronto llegarán las rutas a parques de bomberos, hospitales y otros puntos clave, y después los recorridos con sentidos de circulación.
+          Ya puedes aprender el Anexo III (entrada y salida de cada calle, cómo se unen y dónde está cada polígono) y {RECORRIDOS.length} recorridos reales desde los parques de bomberos
+          a hospitales y otros puntos clave, comprobados en Google Maps. Seguimos añadiendo recorridos.
         </div>
       </section>
       <Card>
@@ -121,13 +128,14 @@ export function Callejero({ user, progreso, setProgreso, resultados, setResultad
         <p style={{ fontSize: 14, margin: "0 0 10px", color: C.inkSoft }}>
           Es la <strong style={{ color: C.ink }}>segunda prueba del primer ejercicio</strong>, justo después del test del temario. Entra el
           <strong style={{ color: C.ink }}> Anexo III</strong> de las bases: {CALLES.length} calles con su entrada y su salida, y {POLIGONOS.length} polígonos industriales.
-          Formato previsto: 50 preguntas, 3 opciones, 30 minutos. Las rutas de «Unir calles» van de extremo a extremo según el Anexo, sin sentidos de circulación.
+          Formato previsto: 50 preguntas, 3 opciones, 30 minutos. Las rutas de «Unir calles» van de extremo a extremo según el Anexo, sin sentidos de circulación; los «Recorridos» son trayectos reales en coche comprobados en Google Maps.
         </p>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-          <select value={que} onChange={(e) => setQue(e.target.value)} style={inputStyle} aria-label="Qué practicar">
+          <select value={que} onChange={(e) => setQue(e.target.value)} style={{ ...inputStyle, maxWidth: "100%" }} aria-label="Qué practicar">
             <option value="calles">Calles: entrada y salida</option>
             <option value="relaciones">Unir calles: conectar, encadenar, rutas</option>
             <option value="poligonos">Polígonos industriales</option>
+            <option value="recorridos">Recorridos desde los parques</option>
             <option value="todo">Todo el Anexo III</option>
           </select>
           <select value={n} onChange={(e) => setN(+e.target.value)} style={inputStyle} aria-label="Número de preguntas">
@@ -155,6 +163,7 @@ export function Callejero({ user, progreso, setProgreso, resultados, setResultad
         {[
           { label: "Calles dominadas", value: `${callesDominadas} / ${CALLES.length}`, pct: (100 * callesDominadas) / CALLES.length, color: C.red },
           { label: "Polígonos dominados", value: `${polDominados} / ${POLIGONOS.length}`, pct: (100 * polDominados) / POLIGONOS.length, color: C.steel },
+          { label: "Recorridos dominados", value: `${recDominados} / ${RECORRIDOS.length}`, pct: (100 * recDominados) / RECORRIDOS.length, color: C.yellow },
           { label: "Preguntas practicadas", value: `${fmtN(vistas)} / ${fmtN(TOTAL_PREGUNTAS)}`, pct: (100 * vistas) / TOTAL_PREGUNTAS, color: C.ink },
         ].map((s) => (
           <Card key={s.label} style={{ padding: 14, borderTop: `4px solid ${s.color}` }}>
@@ -179,15 +188,15 @@ export function Callejero({ user, progreso, setProgreso, resultados, setResultad
       )}
 
       <Card>
-        <H2>Estudiar el Anexo III</H2>
+        <H2>Estudiar el callejero</H2>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 10 }}>
-          {[["calles", `Calles (${CALLES.length})`], ["poligonos", `Polígonos (${POLIGONOS.length})`]].map(([id, t]) => (
+          {[["calles", `Calles (${CALLES.length})`], ["poligonos", `Polígonos (${POLIGONOS.length})`], ["recorridos", `Recorridos (${RECORRIDOS.length})`]].map(([id, t]) => (
             <button key={id} onClick={() => setVerTabla(id)} aria-pressed={verTabla === id}
               style={{ padding: "6px 14px", borderRadius: 4, fontFamily: FONT_DISPLAY, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", fontSize: 14, border: `2px solid ${C.ink}`, background: verTabla === id ? C.ink : "transparent", color: verTabla === id ? C.yellow : C.ink }}>
               {t}
             </button>
           ))}
-          <input value={buscar} onChange={(e) => setBuscar(e.target.value)} placeholder="Buscar calle o polígono…" aria-label="Buscar en el Anexo III"
+          <input value={buscar} onChange={(e) => setBuscar(e.target.value)} placeholder={verTabla === "recorridos" ? "Buscar parque, destino o calle…" : "Buscar calle o polígono…"} aria-label="Buscar en el callejero"
             style={{ ...inputStyle, flex: "1 1 200px" }} />
         </div>
         <div style={{ display: "flex", gap: 14, fontSize: 11, color: C.inkSoft, marginBottom: 8, flexWrap: "wrap" }}>
@@ -197,7 +206,31 @@ export function Callejero({ user, progreso, setProgreso, resultados, setResultad
           <Leyenda color={COLOR_ESTADO.gris} t="sin practicar" />
         </div>
         <div style={{ maxHeight: 460, overflow: "auto", border: `1px solid ${C.line}`, borderRadius: 4 }}>
-          {verTabla === "calles" ? (
+          {verTabla === "recorridos" ? (
+            recFiltrados.length === 0 ? <div style={{ padding: 10 }}><Vacio texto="Ningún recorrido coincide con la búsqueda." /></div> : (
+              <div>
+                {recFiltrados.map((r) => (
+                  <details key={r.id} style={{ borderBottom: `1px solid ${C.line}`, padding: "8px 10px" }}>
+                    <summary style={{ cursor: "pointer", fontWeight: 600, fontSize: 14, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                      <Punto s={porItem[r.id]} />
+                      <span>{r.desde} → {r.hasta}</span>
+                      <span style={{ fontSize: 11, fontWeight: 400, color: C.inkSoft }}>· {r.pasos.length} pasos{r.original ? " · alternativa" : ""}{/aparcamiento/i.test(r.estado) ? " · hasta aparcamiento" : ""}</span>
+                    </summary>
+                    <ol style={{ margin: "8px 0 6px", paddingLeft: 22, fontSize: 13, lineHeight: 1.5 }}>
+                      {r.pasos.map((p, i) => <li key={i}>{p}</li>)}
+                    </ol>
+                    {r.original && (
+                      <p style={{ ...anexo, fontSize: 12, margin: "0 0 6px" }}>
+                        Itinerario original (sin validar por un corte de tráfico): {r.original.join(" → ")}.
+                      </p>
+                    )}
+                    <p style={{ ...anexo, fontSize: 12, margin: "0 0 6px" }}>{r.estado}. {r.alcance}</p>
+                    <a href={r.maps.replace(/ /g, "%20")} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: C.steel, fontWeight: 600 }}>Abrir en Google Maps ↗</a>
+                  </details>
+                ))}
+              </div>
+            )
+          ) : verTabla === "calles" ? (
             callesFiltradas.length === 0 ? <div style={{ padding: 10 }}><Vacio texto="Ninguna calle coincide con la búsqueda." /></div> : (
               <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: FONT_BODY }}>
                 <thead><tr><th style={th}>Calle</th><th style={th}>Entrada</th><th style={th}>Salida</th></tr></thead>
@@ -234,10 +267,16 @@ export function Callejero({ user, progreso, setProgreso, resultados, setResultad
             )
           )}
         </div>
+        {verTabla === "recorridos" ? (
+          <p style={{ fontSize: 12, color: C.inkSoft, margin: "8px 0 0" }}>
+            {FUENTE_RECORRIDOS} No incluyen la salida de cocheras ni los accesos de servicio. Pulsa un recorrido para ver los pasos.
+          </p>
+        ) : (
         <p style={{ fontSize: 12, color: C.inkSoft, margin: "8px 0 0" }}>
           Fuente: Anexo III de las bases de Bombera/o Conductor/a del Ayuntamiento de Zaragoza (BOPZ núm. 170, de 27/07/2026). Los nombres se muestran en su forma
           natural («La Mina», «Miguel Servet»); debajo, en gris, cómo aparecen en el Anexo. El orden es el del Anexo.
         </p>
+        )}
       </Card>
     </div>
   );
