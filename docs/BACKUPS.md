@@ -1,7 +1,7 @@
 # Copias de seguridad
 
 El plan gratuito de Supabase no hace backups. El workflow `.github/workflows/backup-supabase.yml`
-hace uno cada noche (02:17 UTC), lo cifra y lo guarda 90 días como *artifact* en GitHub Actions.
+hace uno cada noche (02:17 UTC), lo cifra y lo guarda 30 días como *artifact* en GitHub Actions.
 
 ## Qué se guarda
 | Fichero dentro del backup | Contenido |
@@ -24,11 +24,11 @@ Comprimido y cifrado ocupa unos pocos MB.
      **Guárdala también en tu gestor de contraseñas**: sin ella los backups no se pueden abrir.
 3. Actions → *Backup Supabase* → **Run workflow** para probarlo. Debe acabar en verde y dejar un artifact `backup-AAAA-MM-DD`.
 
-> El repo es público: cualquiera con cuenta de GitHub puede descargar los artifacts, por eso van cifrados.
+> Los artifacts van cifrados aunque el repo sea privado: así una copia descargada por error no expone datos.
 > Nunca añadas al workflow un paso que imprima datos en el log.
 >
-> GitHub desactiva los workflows programados de un repo público tras 60 días sin commits.
-> Si pasa, te avisa por email: basta con volver a activarlo en la pestaña Actions.
+> Cada copia ocupa unos 3 MB y se guarda 30 días. Un repo privado tiene 500 MB gratis para artifacts:
+> si algún día se acerca al límite, GitHub deja de guardar copias nuevas (Settings → Billing → Actions).
 
 ## Restaurar
 ```bash

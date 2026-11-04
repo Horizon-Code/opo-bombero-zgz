@@ -4,7 +4,7 @@
 #   objetivos, diario, uso_api y también banco_preguntas, que hace falta para que las claves
 #   ajenas de progreso/reportes se puedan restaurar) y las cuentas (auth.users, auth.identities),
 #   para que el progreso siga ligado a cada usuario si hay que restaurar en un proyecto nuevo.
-# · El repo es PÚBLICO: el volcado se cifra (AES-256, gpg) ANTES de subirlo como artifact.
+# · El volcado se cifra (AES-256, gpg) ANTES de subirlo como artifact, aunque el repo sea privado.
 #   Sin BACKUP_PASSPHRASE nadie puede leerlo. No imprimir nunca datos en el log.
 # · Efecto secundario útil: la conexión diaria evita que Supabase pause el proyecto por inactividad.
 #
@@ -118,5 +118,5 @@ jobs:
         with:
           name: ${{ env.NOMBRE }}
           path: ${{ env.NOMBRE }}.tar.gz.gpg
-          retention-days: 90
+          retention-days: 30
           if-no-files-found: error
