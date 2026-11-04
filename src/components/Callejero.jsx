@@ -7,7 +7,7 @@ import { Quiz, Resultado } from "./Temario";
 import { addResultado, guardarProgresoCallejero } from "../lib/supabase";
 import { corregir } from "../lib/banco";
 import {
-  CALLES, POLIGONOS, NO_TIENE, TIPOS_CALLE, TIPOS_POLIGONO, norm, txt,
+  CALLES, POLIGONOS, NO_TIENE, TIPOS_CALLE, TIPOS_RELACION, TIPOS_POLIGONO, norm, txt,
   elegirPreguntas, simulacroCallejero, estadoItems, todasLasPreguntas,
 } from "../lib/callejero";
 
@@ -21,8 +21,9 @@ const CRITERIOS = [
 ];
 const QUE = {
   calles: { tipos: TIPOS_CALLE, titulo: "Calles" },
+  relaciones: { tipos: TIPOS_RELACION, titulo: "Unir calles" },
   poligonos: { tipos: TIPOS_POLIGONO, titulo: "Polígonos" },
-  todo: { tipos: [...TIPOS_CALLE, ...TIPOS_POLIGONO], titulo: "Calles y polígonos" },
+  todo: { tipos: [...TIPOS_CALLE, ...TIPOS_RELACION, ...TIPOS_POLIGONO], titulo: "Todo el Anexo" },
 };
 
 // color de un elemento de la tabla según cómo va
@@ -111,8 +112,8 @@ export function Callejero({ user, progreso, setProgreso, resultados, setResultad
           Estamos <span style={{ color: C.red }}>mejorando el callejero</span>
         </div>
         <div style={{ fontSize: 14, color: C.inkSoft, marginTop: 4 }}>
-          De momento puedes ir aprendiendo el Anexo III: la entrada y la salida de cada calle, qué calle une dos y dónde está cada polígono.
-          Pronto llegarán preguntas para unir calles y llegar a parques de bomberos, hospitales y otros puntos clave, y después los recorridos con sentidos de circulación.
+          De momento puedes aprender el Anexo III: la entrada y la salida de cada calle, cómo se unen unas con otras y dónde está cada polígono.
+          Pronto llegarán las rutas a parques de bomberos, hospitales y otros puntos clave, y después los recorridos con sentidos de circulación.
         </div>
       </section>
       <Card>
@@ -120,13 +121,14 @@ export function Callejero({ user, progreso, setProgreso, resultados, setResultad
         <p style={{ fontSize: 14, margin: "0 0 10px", color: C.inkSoft }}>
           Es la <strong style={{ color: C.ink }}>segunda prueba del primer ejercicio</strong>, justo después del test del temario. Entra el
           <strong style={{ color: C.ink }}> Anexo III</strong> de las bases: {CALLES.length} calles con su entrada y su salida, y {POLIGONOS.length} polígonos industriales.
-          Formato previsto: 50 preguntas, 3 opciones, 30 minutos.
+          Formato previsto: 50 preguntas, 3 opciones, 30 minutos. Las rutas de «Unir calles» van de extremo a extremo según el Anexo, sin sentidos de circulación.
         </p>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
           <select value={que} onChange={(e) => setQue(e.target.value)} style={inputStyle} aria-label="Qué practicar">
-            <option value="calles">Calles (entrada, salida, tramo)</option>
+            <option value="calles">Calles: entrada y salida</option>
+            <option value="relaciones">Unir calles: conectar, encadenar, rutas</option>
             <option value="poligonos">Polígonos industriales</option>
-            <option value="todo">Calles y polígonos</option>
+            <option value="todo">Todo el Anexo III</option>
           </select>
           <select value={n} onChange={(e) => setN(+e.target.value)} style={inputStyle} aria-label="Número de preguntas">
             {[10, 20, 30, 50].map((x) => <option key={x} value={x}>{x} preguntas</option>)}

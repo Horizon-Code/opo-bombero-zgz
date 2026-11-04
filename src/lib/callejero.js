@@ -14,6 +14,9 @@ const NOMBRES = datos.nombres || {};
 export const txt = (s) => NOMBRES[s] || s;
 // dentro de una frase: «la calle del Tercer Milenio», «entrada por de las Damas» → en minúscula
 const f = (s) => txt(s).replace(/^(De|Del) /, (m) => m.toLowerCase());
+// en mitad de una frase: «en la calle de las Damas» (en vez de «en De las Damas»); G, al empezar una frase
+const g = (s) => (/^(De|Del) /.test(txt(s)) ? `la calle ${f(s)}` : txt(s));
+const G = (s) => { const t = g(s); return t.charAt(0).toUpperCase() + t.slice(1); };
 
 // Comparar nombres sin acentos, mayúsculas ni signos («ATARÉS, JOSÉ» = «ATARÉS JOSÉ»)
 export const norm = (s) =>
@@ -21,7 +24,8 @@ export const norm = (s) =>
 
 const barajar = (a, rnd = Math.random) => { const x = [...a]; for (let i = x.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [x[i], x[j]] = [x[j], x[i]]; } return x; };
 // clave de comparación: el nombre natural normalizado (así «ATARÉS JOSÉ» y «ATARÉS, JOSÉ» son la misma calle)
-const clave = (s) => norm(txt(s));
+const cacheClave = new Map();
+const clave = (s) => { let k = cacheClave.get(s); if (k === undefined) { k = norm(txt(s)); cacheClave.set(s, k); } return k; };
 const unicos = (arr) => { const vistos = new Set(); return arr.filter((x) => { const k = clave(x); if (!k || vistos.has(k)) return false; vistos.add(k); return true; }); };
 
 // ---- índices ----
@@ -42,7 +46,10 @@ const unir = (a, b) => {
 for (const c of CALLES) { unir(c.calle, c.entrada); unir(c.calle, c.salida); unir(c.entrada, c.salida); }
 const TODOS_LOS_NOMBRES = unicos(CALLES.flatMap((c) => [c.calle, c.entrada, c.salida]).filter((x) => x !== NO_TIENE));
 
+const cacheCercanos = new Map();
 function cercanos(nombre, profundidad = 2) {
+  const ck = `${profundidad}|${nombre}`;
+  if (cacheCercanos.has(ck)) return cacheCercanos.get(ck);
   const inicio = clave(nombre), vistos = new Set([inicio]), out = [];
   let frontera = [inicio];
   for (let d = 0; d < profundidad; d++) {
@@ -50,6 +57,7 @@ function cercanos(nombre, profundidad = 2) {
     for (const k of frontera) for (const [kv, v] of vecinos.get(k) || []) if (!vistos.has(kv)) { vistos.add(kv); out.push(v); sig.push(kv); }
     frontera = sig;
   }
+  cacheCercanos.set(ck, out);
   return out;
 }
 
@@ -77,8 +85,13 @@ const ETIQUETA = {
   tramo: "Callejero · Qué calle va de… a…",
   poligono: "Polígonos industriales · Situación",
   poligono_inv: "Polígonos industriales · Cuál está ahí",
+  conecta: "Callejero · Calles que dan a…",
+  intrusa: "Callejero · La que no encaja",
+  cadena: "Callejero · Encadenar calles",
+  enlace: "Callejero · Unir calles",
+  ruta: "Callejero · Ruta entre calles",
 };
-const explicaCalle = (c) => `Anexo III: calle ${f(c.calle)} — entrada por ${f(c.entrada)}${c.salida === NO_TIENE ? ", sin salida" : ` y salida por ${f(c.salida)}`}. En el Anexo aparece como «${c.calle}».`;
+const explicaCalle = (c) => `Anexo III: calle ${f(c.calle)} — entrada por ${g(c.entrada)}${c.salida === NO_TIENE ? ", sin salida" : ` y salida por ${g(c.salida)}`}. En el Anexo aparece como «${c.calle}».`;
 
 // ---- generadores por tipo (cada uno devuelve null si la pregunta saldría ambigua) ----
 const GEN = {
@@ -114,7 +127,7 @@ const GEN = {
     const cerca = [...cercanos(c.entrada, 1), ...cercanos(c.salida, 1)].filter((x) => filasPorCalle.has(clave(x)));
     return montar({
       id: `tramo:${c.id}`, item: c.id, tipo: "tramo", rnd,
-      enunciado: `¿Qué calle tiene la entrada por ${f(c.entrada)} y la salida por ${f(c.salida)}?`,
+      enunciado: `¿Qué calle tiene la entrada por ${g(c.entrada)} y la salida por ${g(c.salida)}?`,
       correcta: c.calle, malas: distractores([...validas, c.entrada, c.salida], cerca, CALLES.map((x) => x.calle), rnd),
       explicacion: explicaCalle(c),
     });
@@ -147,15 +160,177 @@ const GEN = {
   },
 };
 
+// ---- relaciones entre calles (para conectar, encadenar y unir) ----
+// «x toca y» = en la tabla, la entrada o la salida de x es y. Solo sabemos dónde EMPIEZA y ACABA cada calle,
+// no sus cruces intermedios ni los sentidos de circulación: las rutas son de extremo a extremo.
+const toca = (fila, y) => clave(fila.entrada) === clave(y) || clave(fila.salida) === clave(y);
+const filas = (x) => filasPorCalle.get(clave(x)) || [];
+const enTabla = (x) => filasPorCalle.has(clave(x));
+const unidas = (x, y) => clave(x) !== clave(y) && (filas(x).some((r) => toca(r, y)) || filas(y).some((r) => toca(r, x)));
+function relacion(x, y) { // texto para la explicación
+  const r = filas(x).find((r) => toca(r, y));
+  if (r) return `${g(x)} tiene su ${clave(r.entrada) === clave(y) ? "entrada" : "salida"} en ${g(y)}`;
+  const r2 = filas(y).find((r) => toca(r, x));
+  return `${g(y)} tiene su ${clave(r2.entrada) === clave(x) ? "entrada" : "salida"} en ${g(x)}`;
+}
+const NOMBRES_TABLA = unicos(CALLES.map((c) => c.calle));
+const vecinasEnTabla = new Map(NOMBRES_TABLA.map((x) => [clave(x), NOMBRES_TABLA.filter((y) => unidas(x, y))]));
+const vecinas = (x) => vecinasEnTabla.get(clave(x)) || [];
+
+// Calles a las que llegan muchas otras (Hispanidad, Madrid, Coso…): las que más se preguntan
+const llegan = new Map();
+for (const c of CALLES) for (const e of [c.entrada, c.salida]) {
+  if (e === NO_TIENE || clave(e) === clave(c.calle)) continue;
+  if (!llegan.has(clave(e))) llegan.set(clave(e), { nombre: e, calles: [] });
+  const l = llegan.get(clave(e)).calles;
+  if (!l.some((x) => clave(x) === clave(c.calle))) l.push(c.calle);
+}
+const HUBS = [...llegan.values()].filter((h) => h.calles.length >= 3).sort((a, b) => b.calles.length - a.calles.length);
+// Calles cerca de un hub que NO empiezan ni acaban en él (ni son sus propios extremos)
+const cacheNoLlegan = new Map();
+function noLlegan(h) {
+  if (cacheNoLlegan.has(h.nombre)) return cacheNoLlegan.get(h.nombre);
+  const prohibidas = new Set([clave(h.nombre), ...h.calles.map(clave), ...filas(h.nombre).flatMap((r) => [clave(r.entrada), clave(r.salida)])]);
+  const ok = (x) => enTabla(x) && !prohibidas.has(clave(x)) && !filas(x).some((r) => toca(r, h.nombre));
+  const cerca = unicos(h.calles.flatMap((x) => vecinas(x))).filter(ok);
+  const res = cerca.length >= 2 ? cerca : unicos([...cerca, ...NOMBRES_TABLA.filter(ok)]);
+  cacheNoLlegan.set(h.nombre, res);
+  return res;
+}
+const slug = (s) => clave(s).toLowerCase().replace(/ /g, "-").slice(0, 24);
+
+const GEN_REL = {
+  // ¿Cuál de estas calles empieza o termina en H?  (una pregunta por cada calle que llega al hub)
+  conecta(h, rnd) {
+    return h.calles.map((x) => montar({
+      id: `conecta:${slug(h.nombre)}:${slug(x)}`, item: `h-${slug(h.nombre)}`, tipo: "conecta", rnd,
+      enunciado: `¿Cuál de estas calles tiene su entrada o su salida en ${g(h.nombre)}?`,
+      correcta: x, malas: barajar(noLlegan(h), rnd).slice(0, 2),
+      explicacion: `Según el Anexo III, ${relacion(x, h.nombre)}. Las otras dos no empiezan ni acaban en ${g(h.nombre)}.`,
+    })).filter(Boolean).map((q) => ({ ...q, meta: { hub: h.nombre } }));
+  },
+  // ¿Cuál NO llega a H?
+  intrusa(h, rnd) {
+    const [a, b] = barajar(h.calles, rnd);
+    const [x] = barajar(noLlegan(h), rnd);
+    if (!x || !b) return [];
+    const q = montar({
+      id: `intrusa:${slug(h.nombre)}`, item: `h-${slug(h.nombre)}`, tipo: "intrusa", rnd,
+      enunciado: `¿Cuál de estas calles NO tiene ni su entrada ni su salida en ${g(h.nombre)}?`,
+      correcta: x, malas: [a, b],
+      explicacion: `${G(a)} y ${g(b)} sí: ${relacion(a, h.nombre)}; ${relacion(b, h.nombre)}. ${G(x)} no empieza ni acaba en ${g(h.nombre)}.`,
+    });
+    return q ? [{ ...q, meta: { hub: h.nombre } }] : [];
+  },
+};
+
+// Encadenar: sales de A por su salida, que es la calle B; sigues por B hasta su salida. ¿Dónde llegas?
+function cadena(a, rnd) {
+  if (a.salida === NO_TIENE || filas(a.calle).length > 1) return null;
+  const fb = filas(a.salida);
+  if (fb.length !== 1) return null;                     // B tiene que estar en la tabla y ser un solo tramo
+  const b = fb[0];
+  if (b.salida === NO_TIENE || [a.calle, b.calle].some((x) => clave(x) === clave(b.salida))) return null;
+  const cerca = unicos([b.entrada, ...cercanos(b.salida, 1), ...cercanos(b.calle, 1)]);
+  return montar({
+    id: `cadena:${a.id}`, item: a.id, tipo: "cadena", rnd,
+    enunciado: `Recorres ${g(a.calle)} hasta su salida, que da a ${g(b.calle)}. Sigues por ${g(b.calle)} hasta su salida. ¿A qué calle llegas?`,
+    correcta: b.salida, malas: distractores([b.salida, a.calle, b.calle], cerca, TODOS_LOS_NOMBRES, rnd),
+    explicacion: `Anexo III: ${g(a.calle)} tiene la salida en ${g(b.calle)}, y ${g(b.calle)} va de ${g(b.entrada)} a ${g(b.salida)}.`,
+  });
+}
+
+// Unir: dos calles que no se tocan y una tercera que las enlaza (A — B — D)
+function enlaces() {
+  const out = [];
+  for (const a of NOMBRES_TABLA) {
+    const va = vecinas(a);
+    const dist2 = unicos(va.flatMap((b) => vecinas(b))).filter((d) => clave(d) !== clave(a) && !unidas(a, d));
+    if (!dist2.length) continue;
+    const d = dist2.sort((x, y) => clave(x).localeCompare(clave(y)))[0]; // destino fijo para que el id sea estable
+    const puentes = va.filter((b) => unidas(b, d));
+    out.push({ a, d, puentes });
+  }
+  return out;
+}
+const ENLACES = enlaces();
+function enlace({ a, d, puentes }, rnd) {
+  const b = barajar(puentes, rnd)[0];
+  const cerca = unicos([...vecinas(a), ...vecinas(d), ...cercanos(a, 2)]).filter(enTabla);
+  // incorrectas: calles que NO tocan a la vez A y D (si tocan una, mejor: hacen dudar)
+  const malas = distractores([...puentes, a, d], cerca, NOMBRES_TABLA, rnd).filter((x) => !(unidas(a, x) && unidas(x, d)));
+  const q = montar({
+    id: `enlace:${slug(a)}:${slug(d)}`, item: `e-${slug(a)}`, tipo: "enlace", rnd,
+    enunciado: `${G(a)} y ${g(d)} no se tocan. ¿Qué calle las une?`,
+    correcta: b, malas,
+    explicacion: `Según el Anexo III: ${relacion(a, b)}, y ${relacion(b, d)}.`,
+  });
+  return q && { ...q, meta: { a, d } };
+}
+// Ruta de 4 calles: A → B → C → D. Las incorrectas se rompen en algún tramo.
+const flecha = (xs) => xs.map(txt).join(" → ");
+const valida = (xs) => xs.every((x, i) => i === 0 || unidas(xs[i - 1], x));
+function rutas() {
+  const out = [];
+  for (const a of NOMBRES_TABLA) {
+    // BFS hasta distancia 3
+    const prev = new Map([[clave(a), null]]), nivel = new Map([[clave(a), 0]]), cola = [a];
+    while (cola.length) {
+      const x = cola.shift();
+      if (nivel.get(clave(x)) === 3) continue;
+      for (const y of vecinas(x)) if (!prev.has(clave(y))) { prev.set(clave(y), x); nivel.set(clave(y), nivel.get(clave(x)) + 1); cola.push(y); }
+    }
+    const d3 = NOMBRES_TABLA.filter((y) => nivel.get(clave(y)) === 3).sort((x, y) => clave(x).localeCompare(clave(y)));
+    if (!d3.length) continue;
+    const d = d3[0], camino = [d];
+    while (prev.get(clave(camino[0]))) camino.unshift(prev.get(clave(camino[0])));
+    out.push(camino); // [A, B, C, D]
+  }
+  return out;
+}
+const RUTAS = rutas();
+function ruta(camino, rnd) {
+  const [a, b, c, d] = camino;
+  const cerca = unicos([...vecinas(b), ...vecinas(c), ...cercanos(b, 1), ...cercanos(c, 1)]).filter(enTabla);
+  const rotas = [];
+  for (const x of barajar(cerca, rnd)) {
+    if (rotas.length >= 2) break;
+    for (const cand of barajar([[a, x, c, d], [a, b, x, d]], rnd)) {
+      if (new Set(cand.map(clave)).size < 4 || valida(cand)) continue;   // tiene que romperse en algún tramo
+      if (rotas.some((r) => flecha(r) === flecha(cand))) continue;
+      rotas.push(cand); break;
+    }
+  }
+  if (rotas.length < 2) return null;
+  const roto = (xs) => { const i = xs.findIndex((x, k) => k > 0 && !unidas(xs[k - 1], x)); return `${g(xs[i - 1])} y ${g(xs[i])} no se tocan`; };
+  const opciones = barajar([camino, ...rotas], rnd);
+  return {
+    id: `ruta:${slug(a)}:${slug(d)}`, item: `r-${slug(a)}`, tipo: "ruta",
+    pregunta: `¿Qué secuencia de calles lleva de ${g(a)} a ${g(d)}, pasando de una a otra por sus extremos?`,
+    opciones: opciones.map(flecha), correcta: opciones.indexOf(camino),
+    explicacion: `Según el Anexo III: ${relacion(a, b)}; ${relacion(b, c)}; ${relacion(c, d)}. En las otras, ${rotas.map(roto).join("; en la otra, ")}.`,
+    tema: "Callejero", etiqueta: ETIQUETA.ruta,
+  };
+}
+
 export const TIPOS_CALLE = ["entrada", "salida", "tramo"];
+export const TIPOS_RELACION = ["conecta", "intrusa", "cadena", "enlace", "ruta"];
 export const TIPOS_POLIGONO = ["poligono", "poligono_inv"];
 export const itemPorId = Object.fromEntries([...CALLES, ...POLIGONOS].map((x) => [x.id, x]));
 
 // Todas las preguntas posibles (para validar y para las estadísticas)
-export function todasLasPreguntas(rnd = Math.random) {
+export function todasLasPreguntas(rnd = Math.random, tipos = null) {
+  const quiero = (t) => !tipos || tipos.includes(t);
   const out = [];
-  for (const c of CALLES) for (const t of TIPOS_CALLE) { const q = GEN[t](c, rnd); if (q) out.push(q); }
-  for (const p of POLIGONOS) for (const t of TIPOS_POLIGONO) { const q = GEN[t](p, rnd); if (q) out.push(q); }
+  for (const c of CALLES) for (const t of TIPOS_CALLE) if (quiero(t)) { const q = GEN[t](c, rnd); if (q) out.push(q); }
+  for (const p of POLIGONOS) for (const t of TIPOS_POLIGONO) if (quiero(t)) { const q = GEN[t](p, rnd); if (q) out.push(q); }
+  for (const h of HUBS) {
+    if (quiero("conecta")) out.push(...GEN_REL.conecta(h, rnd));
+    if (quiero("intrusa")) out.push(...GEN_REL.intrusa(h, rnd));
+  }
+  if (quiero("cadena")) for (const c of CALLES) { const q = cadena(c, rnd); if (q) out.push(q); }
+  if (quiero("enlace")) for (const e of ENLACES) { const q = enlace(e, rnd); if (q) out.push(q); }
+  if (quiero("ruta")) for (const r of RUTAS) { const q = ruta(r, rnd); if (q) out.push(q); }
   return out;
 }
 
@@ -170,8 +345,8 @@ function peso(p, criterio) {
 }
 
 // Elige n preguntas de los tipos pedidos, sin repetir calle o polígono en el mismo test
-export function elegirPreguntas({ n = 20, tipos = [...TIPOS_CALLE, ...TIPOS_POLIGONO], criterio = "inteligente", progreso = {} }) {
-  const candidatas = todasLasPreguntas().filter((q) => tipos.includes(q.tipo));
+export function elegirPreguntas({ n = 20, tipos = [...TIPOS_CALLE, ...TIPOS_RELACION, ...TIPOS_POLIGONO], criterio = "inteligente", progreso = {} }) {
+  const candidatas = todasLasPreguntas(Math.random, tipos);
   const puntuadas = candidatas
     .map((q) => ({ q, w: peso(progreso[q.id], criterio) }))
     .filter((x) => x.w > 0)
@@ -187,11 +362,12 @@ export function elegirPreguntas({ n = 20, tipos = [...TIPOS_CALLE, ...TIPOS_POLI
 }
 
 // Simulacro con el formato previsto de la prueba: 50 preguntas, 3 opciones, 30 minutos.
-// Reparto aproximado: 40 de calles y 10 de polígonos.
+// Reparto aproximado: 25 de calles, 15 de relaciones entre calles y 10 de polígonos.
 export function simulacroCallejero(progreso = {}) {
-  const calles = elegirPreguntas({ n: 40, tipos: TIPOS_CALLE, criterio: "azar", progreso });
+  const calles = elegirPreguntas({ n: 25, tipos: TIPOS_CALLE, criterio: "azar", progreso });
+  const rel = elegirPreguntas({ n: 15, tipos: TIPOS_RELACION, criterio: "azar", progreso }).filter((q) => !calles.some((c) => c.item === q.item));
   const pols = elegirPreguntas({ n: 10, tipos: TIPOS_POLIGONO, criterio: "azar", progreso });
-  return barajar([...calles, ...pols]);
+  return barajar([...calles, ...rel, ...pols]);
 }
 
 // Estado de dominio: una calle está dominada si la última vez acertó todas las preguntas suyas que ha visto
