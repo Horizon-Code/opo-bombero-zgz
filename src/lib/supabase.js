@@ -139,3 +139,22 @@ export const guardarProgreso = async (filas, userId) => {
   const { error } = await supabase.from("progreso").upsert(filas.map((f) => ({ ...f, user_id: userId })));
   if (error) console.error("guardarProgreso:", error);
 };
+
+/* ---------- progreso del callejero (migración 7) ---------- */
+export const getProgresoCallejero = async () => {
+  const filas = [];
+  for (let desde = 0; ; desde += 1000) {
+    const { data, error } = await supabase.from("progreso_callejero")
+      .select("pregunta_id,vistas,aciertos,ultimo_resultado,ultima_fecha")
+      .order("pregunta_id").range(desde, desde + 999);
+    if (error) { console.error("getProgresoCallejero:", error); break; }
+    filas.push(...(data || []));
+    if (!data || data.length < 1000) break;
+  }
+  return Object.fromEntries(filas.map((r) => [r.pregunta_id, r]));
+};
+export const guardarProgresoCallejero = async (filas, userId) => {
+  if (!filas.length) return;
+  const { error } = await supabase.from("progreso_callejero").upsert(filas.map((f) => ({ ...f, user_id: userId })));
+  if (error) console.error("guardarProgresoCallejero:", error);
+};

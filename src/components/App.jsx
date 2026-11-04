@@ -8,8 +8,9 @@ import {
   supabase, logout,
   getResultados,
   getMarcas, addMarca, delMarca, getObjetivos, setObjetivo as dbSetObjetivo,
-  getProgreso, getMisAvisos,
+  getProgreso, getMisAvisos, getProgresoCallejero,
 } from "../lib/supabase";
+import { Callejero } from "./Callejero";
 import { AvisosResueltos } from "./Avisos";
 import { Temario, useEstadoTemas } from "./Temario";
 import { Insignia, Marca } from "./Insignia";
@@ -60,6 +61,7 @@ export default function App() {
   const [marcas, setMarcas] = useState([]);
   const [objetivos, setObjetivos] = useState({});
   const [progreso, setProgreso] = useState({});
+  const [progresoCallejero, setProgresoCallejero] = useState({});
   const [avisos, setAvisos] = useState([]);           // avisos del usuario sobre preguntas (los suyos)
   const [vistaTests, setVistaTests] = useState("temario"); // "temario" | "avisos"
   const onAviso = (fila) => setAvisos((as) => [fila, ...as.filter((a) => a.pregunta_id !== fila.pregunta_id)]);
@@ -96,6 +98,7 @@ export default function App() {
         setResultados(r); setMarcas(m); setObjetivos(o); setProgreso(pg);
         setReady(true);
         getMisAvisos().then((a) => { if (!cancelado) setAvisos(a); }); // no bloquea la carga si falla
+        getProgresoCallejero().then((p) => { if (!cancelado) setProgresoCallejero(p); });
       } catch (e) {
         console.error("Carga inicial:", e);
         if (!cancelado) setErrorCarga(true);
@@ -163,7 +166,7 @@ export default function App() {
       </header>
       <div style={hazard(8)} />
       <nav style={{ maxWidth: 1000, margin: "0 auto", display: "flex", gap: 6, padding: "14px 16px 0", flexWrap: "wrap" }}>
-        {[["panel", "Panel"], ["tests", "Temario y tests"], ["fisico", "Pruebas físicas"]].map(([id, label]) => (
+        {[["panel", "Panel"], ["tests", "Temario y tests"], ["callejero", "Callejero"], ["fisico", "Pruebas físicas"]].map(([id, label]) => (
           <button key={id} onClick={() => { setTab(id); if (id === "tests") setVistaTests("temario"); }}
             style={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 16, letterSpacing: 1, textTransform: "uppercase", padding: "8px 18px", border: `2px solid ${C.ink}`, background: tab === id ? C.ink : "transparent", color: tab === id ? C.yellow : C.ink, borderRadius: 4 }}>
             {label}
@@ -179,6 +182,9 @@ export default function App() {
         {tab === "tests" && (
           <Temario user={user} progreso={progreso} setProgreso={setProgreso} resultados={resultados} setResultados={setResultados}
             avisos={avisos} onAviso={onAviso} onVistos={onVistos} vista={vistaTests} setVista={setVistaTests} />
+        )}
+        {tab === "callejero" && (
+          <Callejero user={user} progreso={progresoCallejero} setProgreso={setProgresoCallejero} resultados={resultados} setResultados={setResultados} />
         )}
         {tab === "fisico" && <FisicoProximamente />}
       </main>
@@ -209,7 +215,7 @@ function Panel({ progreso, resultados, irATemario, avisosResueltos }) {
   const conDatos = estadoTemas.filter((t) => t.s.vistas > 0).sort((a, b) => a.e.acierto - b.e.acierto || a.e.pct - b.e.pct);
   const sinEmpezar = estadoTemas.filter((t) => t.s.vistas === 0).length;
 
-  const soloTests = resultados.filter((r) => r.origen !== "repaso");
+  const soloTests = resultados.filter((r) => r.origen !== "repaso" && r.origen !== "callejero"); // la media es del temario
   const mediaGlobal = (() => {
     let ok = 0, tot = 0;
     soloTests.forEach((r) => { ok += r.aciertos; tot += r.preguntas; });

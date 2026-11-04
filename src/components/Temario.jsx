@@ -291,7 +291,7 @@ function FilaTema({ t, sb, abiertos, toggleAbierto, marcado, toggleMarcado, carg
 /* ============ TEST EN CURSO ============ */
 const fmtReloj = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
-function Quiz({ quiz, senalar, onRespuesta, onTerminar, onSalir }) {
+export function Quiz({ quiz, senalar, onRespuesta, onTerminar, onSalir }) {
   const examen = quiz.modo === "examen";
   const total = quiz.preguntas.length;
   const [idx, setIdx] = useState(0);
@@ -348,7 +348,7 @@ function Quiz({ quiz, senalar, onRespuesta, onTerminar, onSalir }) {
       </div>
       <StripeBar pct={(100 * (examen ? contestadas : idx)) / total} color={C.steel} />
       <div style={{ marginTop: 12, fontSize: 11, letterSpacing: 0.5, textTransform: "uppercase", color: C.steel, fontWeight: 600 }}>
-        Tema {q.tema} · {q.nodo}{b ? ` · ${b.titulo}` : ""}
+        {q.etiqueta || <>Tema {q.tema} · {q.nodo}{b ? ` · ${b.titulo}` : ""}</>}
       </div>
       <h3 style={{ fontSize: 17, margin: "6px 0 12px", lineHeight: 1.4 }}>{q.pregunta}</h3>
       <div style={{ display: "grid", gap: 8 }}>
@@ -368,7 +368,7 @@ function Quiz({ quiz, senalar, onRespuesta, onTerminar, onSalir }) {
         })}
       </div>
 
-      <SenalarPregunta key={q.id} q={q} revelar={!examen} user={senalar.user} aviso={senalar.avisoPor[q.id]} onAviso={senalar.onAviso} />
+      {senalar && <SenalarPregunta key={q.id} q={q} revelar={!examen} user={senalar.user} aviso={senalar.avisoPor[q.id]} onAviso={senalar.onAviso} />}
 
       {!examen && !mostrado && (
         <button onClick={() => { const r = [...resp]; r[idx] = null; setResp(r); setMostrado(true); onRespuesta(q, null); }}
@@ -422,7 +422,7 @@ function Quiz({ quiz, senalar, onRespuesta, onTerminar, onSalir }) {
 }
 
 /* ============ RESULTADO ============ */
-function Resultado({ quiz, senalar, onVolver, onRepetir }) {
+export function Resultado({ quiz, senalar, onVolver, onRepetir }) {
   const { aciertos, fallos, blancos, nota, porTema } = quiz.resultado;
   const total = quiz.preguntas.length;
   const examen100 = total === 100;
@@ -464,12 +464,12 @@ function Resultado({ quiz, senalar, onVolver, onRepetir }) {
           <H2>Revisión de fallos y en blanco</H2>
           {fallidas.map(({ q, r }) => (
             <div key={q.id} style={{ borderTop: `1px solid ${C.line}`, padding: "10px 0", fontSize: 14 }}>
-              <div style={{ fontSize: 11, color: C.steel, fontWeight: 600, textTransform: "uppercase" }}>Tema {q.tema} · {q.nodo}</div>
+              <div style={{ fontSize: 11, color: C.steel, fontWeight: 600, textTransform: "uppercase" }}>{q.etiqueta || `Tema ${q.tema} · ${q.nodo}`}</div>
               <div style={{ fontWeight: 600, margin: "4px 0" }}>{q.pregunta}</div>
               {r != null && <div style={{ color: C.red }}>Tu respuesta: {LETRAS[r]}) {q.opciones[r]}</div>}
               <div style={{ color: C.green }}>Correcta: {LETRAS[q.correcta]}) {q.opciones[q.correcta]}</div>
               <div style={{ color: C.inkSoft, marginTop: 4 }}>{q.explicacion}</div>
-              <SenalarPregunta q={q} user={senalar.user} aviso={senalar.avisoPor[q.id]} onAviso={senalar.onAviso} />
+              {senalar && <SenalarPregunta q={q} user={senalar.user} aviso={senalar.avisoPor[q.id]} onAviso={senalar.onAviso} />}
             </div>
           ))}
         </Card>
