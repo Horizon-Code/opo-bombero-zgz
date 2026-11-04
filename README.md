@@ -34,7 +34,7 @@ Sin IA ni API de pago: el temario es fijo y las preguntas salen del corpus (`cor
 
 ### 1. Supabase
 1. Crea un proyecto en https://supabase.com (el plan gratuito sirve).
-2. SQL Editor → ejecuta, en orden, `supabase/schema.sql` y de `migracion_2.sql` a `migracion_6.sql` (si ya tenías la app, solo las que te falten).
+2. SQL Editor → ejecuta, en orden, `supabase/schema.sql` y de `migracion_2.sql` a `migracion_7.sql` (si ya tenías la app, solo las que te falten).
 3. Project Settings → API: copia la **URL**, la **anon key** y la **service role key** (esta última solo para cargar el banco, nunca en Vercel ni en git).
 
 ### 2. Login con Google
@@ -65,6 +65,10 @@ npm run dev                  # http://localhost:3000
 2. En https://vercel.com → New Project → importa el repo.
 3. Añade las 2 variables de entorno (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`).
 4. Deploy. Añade el dominio de Vercel a las Redirect URLs de Supabase (paso 2.4).
+
+## Callejero (segunda prueba del primer ejercicio)
+Pestaña «Callejero» con el Anexo III de las bases de 2026 (BOPZ núm. 170): 368 calles con su entrada y su salida y 52 polígonos industriales (`src/data/callejero.json`).
+Las preguntas se generan en la app (`src/lib/callejero.js`): entrada y salida de cada calle, qué calle va entre dos, situación de cada polígono y qué polígono hay en una situación, con distractores de la misma zona y sin preguntas ambiguas (unas 1.100). El avance se guarda en `progreso_callejero` (migración 7). Simulacro con el formato previsto: 50 preguntas, 3 opciones, 30 minutos.
 
 ## Avisos de los usuarios y copias de seguridad
 - **Avisos**: cada usuario puede señalar una pregunta, proponer la respuesta y decir de dónde lo saca; ve el estado en «Mis avisos» y recibe «Tu aviso ha servido» cuando se resuelve. Cómo revisarlos y corregir preguntas: [`docs/REVISION.md`](docs/REVISION.md).
