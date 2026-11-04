@@ -308,7 +308,7 @@ function ruta(camino, rnd) {
     id: `ruta:${slug(a)}:${slug(d)}`, item: `r-${slug(a)}`, tipo: "ruta",
     pregunta: `¿Qué secuencia de calles lleva de ${g(a)} a ${g(d)}, pasando de una a otra por sus extremos?`,
     opciones: opciones.map(flecha), correcta: opciones.indexOf(camino),
-    explicacion: `Según el Anexo III: ${relacion(a, b)}; ${relacion(b, c)}; ${relacion(c, d)}. En las otras, ${rotas.map(roto).join("; en la otra, ")}.`,
+    explicacion: `Según el Anexo III: ${relacion(a, b)}; ${relacion(b, c)}; ${relacion(c, d)}. En las incorrectas: ${rotas.map(roto).join("; ")} (según el Anexo).`,
     tema: "Callejero", etiqueta: ETIQUETA.ruta,
   };
 }
