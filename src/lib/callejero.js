@@ -8,23 +8,32 @@ export const POLIGONOS = datos.poligonos;  // [{ id, nombre, situacion }]
 export const FUENTE = datos.fuente;
 export const NO_TIENE = "NO TIENE";
 
+// El Anexo usa el formato de nomenclátor («MINA, LA», «SERVET, MIGUEL»). Para leer y preguntar se usa
+// el nombre natural («La Mina», «Miguel Servet»), con las abreviaturas desarrolladas (ver datos.nombres).
+const NOMBRES = datos.nombres || {};
+export const txt = (s) => NOMBRES[s] || s;
+// dentro de una frase: «la calle del Tercer Milenio», «entrada por de las Damas» → en minúscula
+const f = (s) => txt(s).replace(/^(De|Del) /, (m) => m.toLowerCase());
+
 // Comparar nombres sin acentos, mayúsculas ni signos («ATARÉS, JOSÉ» = «ATARÉS JOSÉ»)
 export const norm = (s) =>
   String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase().replace(/[^A-Z0-9Ñ]+/g, " ").trim();
 
 const barajar = (a, rnd = Math.random) => { const x = [...a]; for (let i = x.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [x[i], x[j]] = [x[j], x[i]]; } return x; };
-const unicos = (arr) => { const vistos = new Set(); return arr.filter((x) => { const k = norm(x); if (!k || vistos.has(k)) return false; vistos.add(k); return true; }); };
+// clave de comparación: el nombre natural normalizado (así «ATARÉS JOSÉ» y «ATARÉS, JOSÉ» son la misma calle)
+const clave = (s) => norm(txt(s));
+const unicos = (arr) => { const vistos = new Set(); return arr.filter((x) => { const k = clave(x); if (!k || vistos.has(k)) return false; vistos.add(k); return true; }); };
 
 // ---- índices ----
 const filasPorCalle = new Map(); // nombre normalizado → filas (hay calles con dos tramos, p. ej. MAYOR o HISPANIDAD)
-for (const c of CALLES) { const k = norm(c.calle); if (!filasPorCalle.has(k)) filasPorCalle.set(k, []); filasPorCalle.get(k).push(c); }
+for (const c of CALLES) { const k = clave(c.calle); if (!filasPorCalle.has(k)) filasPorCalle.set(k, []); filasPorCalle.get(k).push(c); }
 
 // Grafo «está cerca de»: cada calle con su entrada y su salida. Los distractores salen de los
 // vecinos (misma zona de la ciudad), que es lo que hace dudar de verdad; si no hay bastantes, del total.
 const vecinos = new Map();
 const unir = (a, b) => {
   if (!a || !b || a === NO_TIENE || b === NO_TIENE) return;
-  const ka = norm(a), kb = norm(b);
+  const ka = clave(a), kb = clave(b);
   if (ka === kb) return;
   if (!vecinos.has(ka)) vecinos.set(ka, new Map());
   if (!vecinos.has(kb)) vecinos.set(kb, new Map());
@@ -34,7 +43,7 @@ for (const c of CALLES) { unir(c.calle, c.entrada); unir(c.calle, c.salida); uni
 const TODOS_LOS_NOMBRES = unicos(CALLES.flatMap((c) => [c.calle, c.entrada, c.salida]).filter((x) => x !== NO_TIENE));
 
 function cercanos(nombre, profundidad = 2) {
-  const inicio = norm(nombre), vistos = new Set([inicio]), out = [];
+  const inicio = clave(nombre), vistos = new Set([inicio]), out = [];
   let frontera = [inicio];
   for (let d = 0; d < profundidad; d++) {
     const sig = [];
@@ -46,20 +55,20 @@ function cercanos(nombre, profundidad = 2) {
 
 // Dos opciones incorrectas que no sean ninguna respuesta válida, preferiblemente de la zona
 function distractores(validas, cerca, pool, rnd) {
-  const prohibidas = new Set(validas.map(norm));
-  const ok = (x) => x && x !== NO_TIENE && !prohibidas.has(norm(x));
+  const prohibidas = new Set(validas.map(clave));
+  const ok = (x) => x && x !== NO_TIENE && !prohibidas.has(clave(x));
   const elegidas = unicos(barajar(cerca.filter(ok), rnd)).slice(0, 2);
   if (elegidas.length < 2) {
-    const ya = new Set(elegidas.map(norm));
-    elegidas.push(...unicos(barajar(pool.filter((x) => ok(x) && !ya.has(norm(x))), rnd)).slice(0, 2 - elegidas.length));
+    const ya = new Set(elegidas.map(clave));
+    elegidas.push(...unicos(barajar(pool.filter((x) => ok(x) && !ya.has(clave(x))), rnd)).slice(0, 2 - elegidas.length));
   }
   return elegidas;
 }
 
 function montar({ id, item, tipo, enunciado, correcta, malas, explicacion, rnd }) {
   if (malas.length < 2) return null;
-  const opciones = barajar([correcta, ...malas], rnd);
-  return { id, item, tipo, pregunta: enunciado, opciones, correcta: opciones.indexOf(correcta), explicacion, tema: "Callejero", etiqueta: ETIQUETA[tipo] };
+  const opciones = barajar([correcta, ...malas], rnd).map(txt);
+  return { id, item, tipo, pregunta: enunciado, opciones, correcta: opciones.indexOf(txt(correcta)), explicacion, tema: "Callejero", etiqueta: ETIQUETA[tipo] };
 }
 
 const ETIQUETA = {
@@ -69,71 +78,71 @@ const ETIQUETA = {
   poligono: "Polígonos industriales · Situación",
   poligono_inv: "Polígonos industriales · Cuál está ahí",
 };
-const explicaCalle = (c) => `Anexo III: ${c.calle} — entrada: ${c.entrada} · salida: ${c.salida === NO_TIENE ? "no tiene" : c.salida}.`;
+const explicaCalle = (c) => `Anexo III: calle ${f(c.calle)} — entrada por ${f(c.entrada)}${c.salida === NO_TIENE ? ", sin salida" : ` y salida por ${f(c.salida)}`}. En el Anexo aparece como «${c.calle}».`;
 
 // ---- generadores por tipo (cada uno devuelve null si la pregunta saldría ambigua) ----
 const GEN = {
   entrada(c, rnd) {
-    const validas = filasPorCalle.get(norm(c.calle)).map((f) => f.entrada); // si la calle tiene dos tramos, ninguna entrada suya puede ser distractor
-    if (validas.some((v) => norm(v) === norm(c.calle))) return null;       // «MAYOR entra por MAYOR»: no se pregunta
+    const validas = filasPorCalle.get(clave(c.calle)).map((f) => f.entrada); // si la calle tiene dos tramos, ninguna entrada suya puede ser distractor
+    if (validas.some((v) => clave(v) === clave(c.calle))) return null;       // «MAYOR entra por MAYOR»: no se pregunta
     return montar({
       id: `entrada:${c.id}`, item: c.id, tipo: "entrada", rnd,
-      enunciado: `¿Cuál es la entrada de la calle ${c.calle}?`,
+      enunciado: `¿Cuál es la entrada de la calle ${f(c.calle)}?`,
       correcta: c.entrada, malas: distractores([...validas, c.calle, c.salida], cercanos(c.calle), TODOS_LOS_NOMBRES, rnd),
       explicacion: explicaCalle(c),
     });
   },
   salida(c, rnd) {
     if (c.salida === NO_TIENE) return null;
-    const validas = filasPorCalle.get(norm(c.calle)).map((f) => f.salida);
-    if (validas.some((v) => norm(v) === norm(c.calle))) return null;
+    const validas = filasPorCalle.get(clave(c.calle)).map((f) => f.salida);
+    if (validas.some((v) => clave(v) === clave(c.calle))) return null;
     return montar({
       id: `salida:${c.id}`, item: c.id, tipo: "salida", rnd,
-      enunciado: `¿Cuál es la salida de la calle ${c.calle}?`,
+      enunciado: `¿Cuál es la salida de la calle ${f(c.calle)}?`,
       correcta: c.salida, malas: distractores([...validas, c.calle, c.entrada], cercanos(c.calle), TODOS_LOS_NOMBRES, rnd),
       explicacion: explicaCalle(c),
     });
   },
   tramo(c, rnd) {
-    if (c.salida === NO_TIENE || norm(c.entrada) === norm(c.salida)) return null;
+    if (c.salida === NO_TIENE || clave(c.entrada) === clave(c.salida)) return null;
     // todas las calles que van entre esas dos (en cualquier sentido) son válidas: ninguna puede ser distractor
     const validas = CALLES.filter((x) => {
-      const e = norm(x.entrada), s = norm(x.salida), a = norm(c.entrada), b = norm(c.salida);
+      const e = clave(x.entrada), s = clave(x.salida), a = clave(c.entrada), b = clave(c.salida);
       return (e === a && s === b) || (e === b && s === a);
     }).map((x) => x.calle);
     if (unicos(validas).length > 1) return null; // dos calles distintas unen lo mismo: pregunta ambigua
-    const cerca = [...cercanos(c.entrada, 1), ...cercanos(c.salida, 1)].filter((x) => filasPorCalle.has(norm(x)));
+    const cerca = [...cercanos(c.entrada, 1), ...cercanos(c.salida, 1)].filter((x) => filasPorCalle.has(clave(x)));
     return montar({
       id: `tramo:${c.id}`, item: c.id, tipo: "tramo", rnd,
-      enunciado: `¿Qué calle tiene la entrada por ${c.entrada} y la salida por ${c.salida}?`,
+      enunciado: `¿Qué calle tiene la entrada por ${f(c.entrada)} y la salida por ${f(c.salida)}?`,
       correcta: c.calle, malas: distractores([...validas, c.entrada, c.salida], cerca, CALLES.map((x) => x.calle), rnd),
       explicacion: explicaCalle(c),
     });
   },
   poligono(p, rnd) {
-    const otras = POLIGONOS.map((x) => x.situacion);
+    const otras = POLIGONOS.map((x) => x.situacionTxt);
     // mismo tipo de vía primero (otra carretera y km), para que no se adivine por la forma
-    const via = norm(p.situacion).split(" ")[0];
-    const cerca = otras.filter((s) => norm(s).split(" ")[0] === via);
+    const via = (t) => norm(t).split(" ")[0];
+    const cerca = otras.filter((t) => via(t) === via(p.situacionTxt));
     return montar({
       id: `poligono:${p.id}`, item: p.id, tipo: "poligono", rnd,
-      enunciado: `¿Dónde está ${p.nombre}?`,
-      correcta: p.situacion, malas: distractores([p.situacion], cerca, otras, rnd),
-      explicacion: `Anexo III: ${p.nombre} — ${p.situacion}.`,
+      enunciado: `¿Dónde está el ${p.nombreTxt}?`,
+      correcta: p.situacionTxt, malas: distractores([p.situacionTxt], cerca, otras, rnd),
+      explicacion: `Anexo III: ${p.nombreTxt} — ${p.situacionTxt}. En el Anexo aparece como «${p.nombre}».`,
     });
   },
   poligono_inv(p, rnd) {
     // varios polígonos comparten situación (Malpica por calles, Empresarium e Insider…): ninguno de ellos puede ser distractor
-    const mismos = POLIGONOS.filter((x) => norm(x.situacion) === norm(p.situacion)).map((x) => x.nombre);
-    const base = (n) => norm(n).split(" ")[0]; // MALPICA, EUROPA, RUISEÑORES…: tampoco otra calle o fase del mismo polígono
-    const libres = POLIGONOS.filter((x) => !mismos.some((m) => base(m) === base(x.nombre)));
-    const via = (x) => norm(x.situacion).split(" ")[0];
-    const cerca = libres.filter((x) => via(x) === via(p)).map((x) => x.nombre); // otros de la misma carretera o tipo de vía
+    const mismos = POLIGONOS.filter((x) => norm(x.situacionTxt) === norm(p.situacionTxt)).map((x) => x.nombreTxt);
+    const base = (t) => norm(t).replace(/^(POLIGONO|PARQUE)( INDUSTRIAL| EMPRESARIAL| TECNOLOGICO)? /, "").split(" ")[0]; // Malpica, Europa, Ruiseñores…: tampoco otra calle o fase del mismo
+    const libres = POLIGONOS.filter((x) => !mismos.some((m) => base(m) === base(x.nombreTxt)));
+    const via = (x) => norm(x.situacionTxt).split(" ")[0];
+    const cerca = libres.filter((x) => via(x) === via(p)).map((x) => x.nombreTxt); // otros de la misma carretera o tipo de vía
     return montar({
       id: `poligono_inv:${p.id}`, item: p.id, tipo: "poligono_inv", rnd,
-      enunciado: `¿Qué polígono está en ${p.situacion}?`,
-      correcta: p.nombre, malas: distractores(mismos, cerca, libres.map((x) => x.nombre), rnd),
-      explicacion: `Anexo III: ${p.nombre} — ${p.situacion}.`,
+      enunciado: `¿Qué polígono está en ${p.situacionTxt}?`,
+      correcta: p.nombreTxt, malas: distractores(mismos, cerca, libres.map((x) => x.nombreTxt), rnd),
+      explicacion: `Anexo III: ${p.nombreTxt} — ${p.situacionTxt}. En el Anexo aparece como «${p.nombre}».`,
     });
   },
 };

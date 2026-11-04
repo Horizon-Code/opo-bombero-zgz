@@ -7,7 +7,7 @@ import { Quiz, Resultado } from "./Temario";
 import { addResultado, guardarProgresoCallejero } from "../lib/supabase";
 import { corregir } from "../lib/banco";
 import {
-  CALLES, POLIGONOS, NO_TIENE, TIPOS_CALLE, TIPOS_POLIGONO, norm,
+  CALLES, POLIGONOS, NO_TIENE, TIPOS_CALLE, TIPOS_POLIGONO, norm, txt,
   elegirPreguntas, simulacroCallejero, estadoItems, todasLasPreguntas,
 } from "../lib/callejero";
 
@@ -98,9 +98,10 @@ export function Callejero({ user, progreso, setProgreso, resultados, setResultad
 
   const historial = resultados.filter((r) => r.origen === "callejero").slice(-5).reverse();
   const q = norm(buscar);
-  const callesFiltradas = q ? CALLES.filter((c) => norm(`${c.calle} ${c.entrada} ${c.salida}`).includes(q)) : CALLES;
-  const polFiltrados = q ? POLIGONOS.filter((p) => norm(`${p.nombre} ${p.situacion}`).includes(q)) : POLIGONOS;
+  const callesFiltradas = q ? CALLES.filter((c) => norm([c.calle, c.entrada, c.salida].flatMap((x) => [x, txt(x)]).join(" ")).includes(q)) : CALLES;
+  const polFiltrados = q ? POLIGONOS.filter((p) => norm(`${p.nombre} ${p.situacion} ${p.nombreTxt} ${p.situacionTxt}`).includes(q)) : POLIGONOS;
   const th = { textAlign: "left", fontFamily: FONT_DISPLAY, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", fontSize: 13, padding: "6px 8px", borderBottom: `2px solid ${C.ink}`, position: "sticky", top: 0, background: C.panel };
+  const anexo = { fontSize: 11, fontWeight: 400, color: C.inkSoft, letterSpacing: 0.3 }; // cómo aparece en el Anexo III
   const td = { padding: "6px 8px", borderBottom: `1px solid ${C.line}`, fontSize: 13, verticalAlign: "top" };
 
   return (
@@ -192,9 +193,12 @@ export function Callejero({ user, progreso, setProgreso, resultados, setResultad
                 <tbody>
                   {callesFiltradas.map((c) => (
                     <tr key={c.id}>
-                      <td style={{ ...td, fontWeight: 600 }}><span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><Punto s={porItem[c.id]} />{c.calle}</span></td>
-                      <td style={td}>{c.entrada}</td>
-                      <td style={{ ...td, color: c.salida === NO_TIENE ? C.inkSoft : C.ink }}>{c.salida === NO_TIENE ? "No tiene" : c.salida}</td>
+                      <td style={{ ...td, fontWeight: 600 }}>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><Punto s={porItem[c.id]} />{txt(c.calle)}</span>
+                        <div style={{ ...anexo, marginLeft: 16 }}>{c.calle}</div>
+                      </td>
+                      <td style={td}>{txt(c.entrada)}</td>
+                      <td style={{ ...td, color: c.salida === NO_TIENE ? C.inkSoft : C.ink }}>{txt(c.salida)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -207,8 +211,11 @@ export function Callejero({ user, progreso, setProgreso, resultados, setResultad
                 <tbody>
                   {polFiltrados.map((p) => (
                     <tr key={p.id}>
-                      <td style={{ ...td, fontWeight: 600 }}><span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><Punto s={porItem[p.id]} />{p.nombre}</span></td>
-                      <td style={td}>{p.situacion}</td>
+                      <td style={{ ...td, fontWeight: 600 }}>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><Punto s={porItem[p.id]} />{p.nombreTxt}</span>
+                        <div style={{ ...anexo, marginLeft: 16 }}>{p.nombre}</div>
+                      </td>
+                      <td style={td}>{p.situacionTxt}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -217,7 +224,8 @@ export function Callejero({ user, progreso, setProgreso, resultados, setResultad
           )}
         </div>
         <p style={{ fontSize: 12, color: C.inkSoft, margin: "8px 0 0" }}>
-          Fuente: Anexo III de las bases de Bombera/o Conductor/a del Ayuntamiento de Zaragoza (BOPZ núm. 170, de 27/07/2026), tal como se publicó.
+          Fuente: Anexo III de las bases de Bombera/o Conductor/a del Ayuntamiento de Zaragoza (BOPZ núm. 170, de 27/07/2026). Los nombres se muestran en su forma
+          natural («La Mina», «Miguel Servet»); debajo, en gris, cómo aparecen en el Anexo. El orden es el del Anexo.
         </p>
       </Card>
     </div>
