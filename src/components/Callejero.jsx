@@ -105,7 +105,7 @@ export function Callejero({ user, progreso, setProgreso, resultados, setResultad
   const td = { padding: "6px 8px", borderBottom: `1px solid ${C.line}`, fontSize: 13, verticalAlign: "top" };
 
   return (
-    <div style={{ display: "grid", gap: 14 }}>
+    <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 14 }}>
       <section role="status" style={{ background: C.panel, border: `1px solid ${C.line}`, borderLeft: `6px solid ${C.yellow}`, borderRadius: 6, padding: "12px 16px" }}>
         <div style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 18, letterSpacing: 0.5, textTransform: "uppercase", lineHeight: 1.1 }}>
           Estamos <span style={{ color: C.red }}>mejorando el callejero</span>
@@ -194,7 +194,7 @@ export function Callejero({ user, progreso, setProgreso, resultados, setResultad
           <Leyenda color={COLOR_ESTADO.rojo} t="fallada la última vez" />
           <Leyenda color={COLOR_ESTADO.gris} t="sin practicar" />
         </div>
-        <div style={{ maxHeight: 460, overflowY: "auto", border: `1px solid ${C.line}`, borderRadius: 4 }}>
+        <div style={{ maxHeight: 460, overflow: "auto", border: `1px solid ${C.line}`, borderRadius: 4 }}>
           {verTabla === "calles" ? (
             callesFiltradas.length === 0 ? <div style={{ padding: 10 }}><Vacio texto="Ninguna calle coincide con la búsqueda." /></div> : (
               <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: FONT_BODY }}>
