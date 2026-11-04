@@ -106,6 +106,15 @@ export function Callejero({ user, progreso, setProgreso, resultados, setResultad
 
   return (
     <div style={{ display: "grid", gap: 14 }}>
+      <section role="status" style={{ background: C.panel, border: `1px solid ${C.line}`, borderLeft: `6px solid ${C.yellow}`, borderRadius: 6, padding: "12px 16px" }}>
+        <div style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 18, letterSpacing: 0.5, textTransform: "uppercase", lineHeight: 1.1 }}>
+          Estamos <span style={{ color: C.red }}>mejorando el callejero</span>
+        </div>
+        <div style={{ fontSize: 14, color: C.inkSoft, marginTop: 4 }}>
+          De momento puedes ir aprendiendo el Anexo III: la entrada y la salida de cada calle, qué calle une dos y dónde está cada polígono.
+          Pronto llegarán preguntas para unir calles y llegar a parques de bomberos, hospitales y otros puntos clave, y después los recorridos con sentidos de circulación.
+        </div>
+      </section>
       <Card>
         <H2>Prueba de callejero</H2>
         <p style={{ fontSize: 14, margin: "0 0 10px", color: C.inkSoft }}>
