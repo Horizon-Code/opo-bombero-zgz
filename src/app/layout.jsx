@@ -21,7 +21,7 @@ export const metadata = {
     siteName: "Opo Bomberos Zaragoza",
     title: `Tests Oposición Bombero Zaragoza 2026 · ${TOTAL_TXT} preguntas`,
     description:
-      `Los 40 temas del temario oficial en ${TOTAL_TXT} preguntas tipo test, con simulacros de 100 preguntas en 80 minutos y tu avance tema a tema.`,
+      `Los 40 temas del temario oficial en ${TOTAL_TXT} preguntas tipo test, con simulacros de 100 preguntas en 75 minutos y tu avance tema a tema.`,
     images: [{ url: "/og.png", width: 1200, height: 630, alt: "Opo Bomberos Zaragoza · tests de la oposición" }],
   },
   twitter: {

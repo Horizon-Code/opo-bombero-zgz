@@ -27,8 +27,8 @@ Sin IA ni API de pago: el temario es fijo y las preguntas salen del corpus (`cor
 ### Tests
 - **De uno o varios temas** (casillas), de un **subtema** o de un **apartado** (botón «Test» en cada fila), **aleatorio** o **repaso de falladas**.
 - Criterio: *inteligente* (primero falladas y no vistas), solo no vistas, solo falladas o al azar.
-- Modo **práctica** (corrige cada pregunta con explicación y la frase del temario) o **examen** (corrige al final, 48 s por pregunta, se puede dejar en blanco).
-- **Simulacro oficial**: 20 preguntas de la Parte I y 80 de la Parte II repartidas entre los 40 temas, 80 minutos, +0,10 / −0,025 / 0.
+- Modo **práctica** (corrige cada pregunta con explicación y la frase del temario) o **examen** (corrige al final, 45 s por pregunta, se puede dejar en blanco).
+- **Simulacro oficial**: 20 preguntas de la Parte I y 80 de la Parte II repartidas entre los 40 temas, 75 minutos, +0,10 / −0,025 / 0.
 
 ## Puesta en marcha
 
