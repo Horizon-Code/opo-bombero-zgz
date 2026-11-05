@@ -114,3 +114,10 @@ from public.reportes_preguntas;
 select count(distinct pregunta_id) from public.correcciones where created_at >= date_trunc('month', now());
 ```
 Objetivos iniciales: ≥ 2 usuarios (además de ti) avisando al mes, ≥ 50 % de avisos con fuente, mediana ≤ 7 días, < 20 abiertos.
+
+## 6. Cambios masivos: `supabase/aplicar/`
+Para cambios de datos que no caben en el editor SQL (cientos o miles de filas), se deja el `.sql` en
+`supabase/aplicar/<fecha>-<qué>/` y se hace push: el workflow «Aplicar SQL en Supabase» ejecuta en orden
+cada fichero **nuevo** del push, cada uno en su transacción, y en el log solo salen los recuentos que
+devuelva el propio fichero. Los ficheros deben llevar guardas en el `WHERE` para poder repetirse sin daño.
+Ejemplo: `2026-11-05-citas/` amplió 1.845 citas cortadas con el texto literal del corpus (`corpus-bombero/banco-v4`).
