@@ -14,9 +14,9 @@ export function Cabecera({ enLanding = false }) {
         </a>
         <div className={s.navLinks}>
           <a href={ancla("como-funciona")}>Cómo funciona</a>
-          <a href={ancla("simulacro")}>Simulacro</a>
+          <a href={ancla("callejero")}>Callejero</a>
           <a href={ancla("temario")}>Temario</a>
-          <a href={ancla("camiseta")}>Camiseta</a>
+          <a href={ancla("simulacro")}>Simulacro</a>
           <a href={ancla("preguntas-frecuentes")}>Preguntas frecuentes</a>
         </div>
         <a href="/app" className={s.btnLight}>Entrar</a>
