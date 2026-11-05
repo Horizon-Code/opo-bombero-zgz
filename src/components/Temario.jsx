@@ -40,8 +40,8 @@ export function Temario({ user, progreso, setProgreso, resultados, setResultados
   const toggle = (set, setter, k) => { const x = new Set(set); x.has(k) ? x.delete(k) : x.add(k); setter(x); };
 
   // ---- arrancar un test a partir de una lista de ids ----
-  // en modo examen, 48 s por pregunta (los 80 minutos del examen real para 100)
-  async function empezar(ids, { titulo, modo: m = modo, limite = m === "examen" ? ids.length * 48 : null, origen = "test" }) {
+  // en modo examen, 45 s por pregunta (los 75 minutos del examen real para 100)
+  async function empezar(ids, { titulo, modo: m = modo, limite = m === "examen" ? ids.length * 45 : null, origen = "test" }) {
     setError("");
     if (!ids.length) { setError("No hay preguntas que cumplan ese criterio en lo que has elegido."); return; }
     setCargando(true);
@@ -67,7 +67,7 @@ export function Temario({ user, progreso, setProgreso, resultados, setResultados
     testDeTemas(estructura.temas.map((t) => t.n), `Aleatorio · ${n} preguntas de todo el temario`);
 
   const lanzarSimulacro = () =>
-    empezar(simulacro(progreso), { titulo: "Simulacro oficial · 100 preguntas · 80 minutos", modo: "examen", limite: 80 * 60, origen: "simulacro" });
+    empezar(simulacro(progreso), { titulo: "Simulacro oficial · 100 preguntas · 75 minutos", modo: "examen", limite: 75 * 60, origen: "simulacro" });
 
   const totalFalladas = useMemo(() => Object.values(progreso).filter((p) => p.ultimo_resultado === false).length, [progreso]);
   const repasarFalladas = () => {
@@ -157,7 +157,7 @@ export function Temario({ user, progreso, setProgreso, resultados, setResultados
         </div>
         <p style={{ fontSize: 12, color: C.inkSoft, margin: "10px 0 0" }}>
           Marca uno o varios temas en la lista de abajo, o usa «Test» en cualquier tema, subtema o apartado. El simulacro reproduce el examen:
-          20 preguntas de la Parte I y 80 de la Parte II, 80 minutos, +0,10 por acierto, −0,025 por fallo y 0 en blanco.
+          20 preguntas de la Parte I y 80 de la Parte II, 75 minutos, +0,10 por acierto, −0,025 por fallo y 0 en blanco.
         </p>
         {cargando && <p style={{ fontSize: 14, color: C.steel, margin: "10px 0 0" }}>Preparando el test…</p>}
         {error && <p style={{ color: C.red, fontSize: 14, margin: "10px 0 0" }}>{error}</p>}

@@ -25,7 +25,7 @@ const TOTAL = miles(estructura.total);
 const FAQ = [
   ["¿Cuánto cuesta?", "De momento es gratis. Solo necesitas una cuenta de Google para guardar tu avance."],
   ["¿De dónde salen las preguntas?", "Del temario oficial: las leyes y normas que cita el Anexo I de la convocatoria, los temas de la Escuela de Bomberos de Zaragoza y los manuales técnicos de referencia. Cada pregunta lleva la frase exacta del texto en la que se basa."],
-  ["¿Cómo es el examen tipo test?", "Preguntas con tres opciones y una sola correcta. Cada acierto suma 0,10, cada fallo resta 0,025 y las preguntas en blanco no puntúan. El simulacro de la aplicación reproduce ese formato con 100 preguntas en 80 minutos."],
+  ["¿Cómo es el examen tipo test?", "Preguntas con tres opciones y una sola correcta. Cada acierto suma 0,10, cada fallo resta 0,025 y las preguntas en blanco no puntúan. El simulacro de la aplicación reproduce ese formato con 100 preguntas en 75 minutos, como en las convocatorias de 2019 y 2022."],
   ["¿Cuántos temas tiene la oposición de bombero de Zaragoza?", "40 temas: 8 de legislación (Parte I) y 32 técnicos (Parte II), según el Anexo I de la convocatoria publicada en el BOPZ núm. 170, de 27 de julio de 2026."],
   ["¿Es una web oficial?", "No. Es un proyecto independiente, sin relación con el Ayuntamiento de Zaragoza. Las bases y las fechas oficiales se publican en el Boletín Oficial de la Provincia de Zaragoza y en la sede electrónica del Ayuntamiento."],
   ["¿Se guarda mi progreso si cambio de dispositivo?", "Sí. Tu avance se guarda en tu cuenta: puedes hacer un test en el móvil y verlo en el ordenador."],
@@ -78,7 +78,7 @@ export default function Landing() {
             <div className={s.heroText}>
               <p className={s.kicker}>Bombero-Conductor · Ayuntamiento de Zaragoza · Convocatoria 2026</p>
               <h1 id="titulo" className={`${s.display} ${s.h1}`}>Tests de la oposición de bombero de Zaragoza</h1>
-              <p className={s.lead}><strong>{TOTAL} preguntas</strong> de los 40 temas del temario oficial, con el formato del examen real. Mira tu avance tema a tema y haz simulacros de 100 preguntas en 80 minutos.</p>
+              <p className={s.lead}><strong>{TOTAL} preguntas</strong> de los 40 temas del temario oficial, con el formato del examen real. Mira tu avance tema a tema y haz simulacros de 100 preguntas en 75 minutos.</p>
               <div className={s.ctas}>
                 <a href="/app" className={s.btnRed}>Empieza con Google</a>
                 <a href="#temario" className={s.btnGhost}>Ver el temario</a>
@@ -93,7 +93,7 @@ export default function Landing() {
           <div className={`${s.wrap} ${s.statsIn}`}>
             <div className={s.stat} style={{ borderColor: "#D7372C" }}><div className={s.statNum}>{TOTAL}</div><div className={s.statTxt}>preguntas tipo test</div></div>
             <div className={s.stat} style={{ borderColor: "#2E5E73" }}><div className={s.statNum}>40 temas</div><div className={s.statTxt}>todo el Anexo I de la convocatoria</div></div>
-            <div className={s.stat} style={{ borderColor: "#F5B700" }}><div className={s.statNum}>100 / 80′</div><div className={s.statTxt}>simulacro: preguntas y minutos</div></div>
+            <div className={s.stat} style={{ borderColor: "#F5B700" }}><div className={s.statNum}>100 / 75′</div><div className={s.statTxt}>simulacro: preguntas y minutos</div></div>
             <div className={s.stat} style={{ borderColor: "#2E7D4F" }}><div className={s.statNum}>3 opciones</div><div className={s.statTxt}>+0,10 acierto · −0,025 fallo</div></div>
           </div>
         </section>
@@ -114,12 +114,12 @@ export default function Landing() {
             <div className={s.simIn}>
               <div className={s.simText}>
                 <h2 id="h-sim" className={`${s.display} ${s.h2}`}>Simulacro con el formato del examen</h2>
-                <p>20 preguntas de la Parte I (legislación) y 80 de la Parte II (técnico), repartidas entre los 40 temas. 80 minutos de reloj, tres opciones por pregunta y la misma penalización del examen: +0,10 por acierto, −0,025 por fallo y 0 en blanco.</p>
+                <p>20 preguntas de la Parte I (legislación) y 80 de la Parte II (técnico), repartidas entre los 40 temas. 75 minutos de reloj, tres opciones por pregunta y la misma penalización del examen: +0,10 por acierto, −0,025 por fallo y 0 en blanco.</p>
               </div>
               <div className={s.simGrid}>
                 <div className={s.simBox}><div className={s.simNum}>20</div><div className={s.simLbl}>Parte I</div></div>
                 <div className={s.simBox}><div className={s.simNum}>80</div><div className={s.simLbl}>Parte II</div></div>
-                <div className={s.simBox}><div className={s.simNum}>80′</div><div className={s.simLbl}>de reloj</div></div>
+                <div className={s.simBox}><div className={s.simNum}>75′</div><div className={s.simLbl}>de reloj</div></div>
                 <div className={s.simBox}><div className={s.simNum}>−¼</div><div className={s.simLbl}>por fallo</div></div>
               </div>
             </div>
