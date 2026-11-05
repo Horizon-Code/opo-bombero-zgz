@@ -1,0 +1,90 @@
+# Aplica en Supabase los ficheros .sql que se añadan en supabase/aplicar/**.
+#
+# Sirve para cambios masivos de datos que no caben en el editor SQL (p. ej. ampliar
+# 1.800 citas). Cada fichero se ejecuta en su propia transacción y en orden alfabético;
+# si uno falla, se para ahí y los siguientes no se aplican. Solo se ejecutan los ficheros
+# NUEVOS en el push (los ya aplicados no se repiten). Los ficheros deben ser idempotentes
+# por si acaso (guardas en el WHERE).
+#
+# En el log solo salen los mensajes que devuelva cada fichero (recuentos), nunca datos.
+# Usa el mismo secret SUPABASE_DB_URL que el backup.
+
+name: Aplicar SQL en Supabase
+
+on:
+  push:
+    paths:
+      - "supabase/aplicar/**.sql"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aplicar-sql
+  cancel-in-progress: false
+
+jobs:
+  aplicar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Ficheros nuevos en este push
+        id: nuevos
+        run: |
+          set -euo pipefail
+          if git rev-parse -q --verify HEAD^ > /dev/null; then
+            git diff --name-only --diff-filter=A HEAD^ HEAD -- 'supabase/aplicar/**.sql' | sort > nuevos.txt
+          else
+            git ls-files 'supabase/aplicar/**.sql' | sort > nuevos.txt
+          fi
+          echo "Ficheros a aplicar:"; cat nuevos.txt
+          [ -s nuevos.txt ] || echo "::notice::No hay ficheros .sql nuevos en este push"
+
+      - name: Instalar psql 17
+        if: hashFiles('nuevos.txt') != ''
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-common > /dev/null
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y > /dev/null
+          sudo apt-get install -y -qq postgresql-client-17 > /dev/null
+          /usr/lib/postgresql/17/bin/psql --version
+
+      - name: Aplicar
+        if: hashFiles('nuevos.txt') != ''
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          set -euo pipefail
+          [ -n "$SUPABASE_DB_URL" ] || { echo "::error::Falta el secret SUPABASE_DB_URL"; exit 1; }
+          # La URL se separa en variables PG* (igual que en el backup) para que la contraseña
+          # nunca aparezca en la línea de conexión ni en un error.
+          eval "$(python3 - <<'PY'
+          import os, shlex, urllib.parse as up
+          url = os.environ["SUPABASE_DB_URL"].strip()
+          esquema, _, resto = url.partition("://")
+          if esquema not in ("postgres", "postgresql") or "@" not in resto:
+              print('echo "::error::SUPABASE_DB_URL no tiene el formato postgresql://usuario:contraseña@host:puerto/base"; exit 1')
+              raise SystemExit
+          cred, _, hostpart = resto.rpartition("@")
+          usuario, _, clave = cred.partition(":")
+          hostport, _, base = hostpart.partition("/")
+          host, _, puerto = hostport.partition(":")
+          clave = up.unquote(clave)
+          for v in {clave, cred}:
+              if v:
+                  print(f"echo {shlex.quote('::add-mask::' + v)}")
+          env = {"PGHOST": host, "PGPORT": puerto or "5432", "PGDATABASE": (base.split("?")[0] or "postgres"),
+                 "PGUSER": up.unquote(usuario), "PGPASSWORD": clave, "PGSSLMODE": "require"}
+          for k, v in env.items():
+              print(f"export {k}={shlex.quote(v)}")
+          PY
+          )"
+          while read -r f; do
+            [ -n "$f" ] || continue
+            echo "== $f"
+            /usr/lib/postgresql/17/bin/psql -X -q -v ON_ERROR_STOP=1 --single-transaction -t -A -f "$f"
+          done < nuevos.txt
