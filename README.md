@@ -51,6 +51,7 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ... node scripts/importar-banco.mjs /mnt/c/Users/ru
 Se puede repetir (actualiza por id). Si el banco cambia, regenera también la estructura y súbela al repo:
 ```bash
 node scripts/generar-estructura.mjs /mnt/c/Users/ruben/Downloads/corpus-bombero
+node scripts/marcar-combinadas.mjs /mnt/c/Users/ruben/Downloads/corpus-bombero/banco   # preguntas con «a) y b) son correctas» y similares
 ```
 
 ### 4. Local
