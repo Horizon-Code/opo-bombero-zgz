@@ -4,6 +4,7 @@
 import React, { useState, useMemo, useRef } from "react";
 import { C, FONT_DISPLAY, FONT_BODY, Card, H2, StripeBar, Vacio, Leyenda, inputStyle, btnStyle, hoy, COLOR_ESTADO } from "./ui";
 import { Quiz, Resultado } from "./Temario";
+import { esCallejero } from "./Avisos";
 import { addResultado, guardarProgresoCallejero } from "../lib/supabase";
 import { corregir } from "../lib/banco";
 import {
@@ -37,7 +38,7 @@ const Punto = ({ s }) => (
     style={{ width: 10, height: 10, borderRadius: "50%", background: colorItem(s), display: "inline-block", flexShrink: 0 }} />
 );
 
-export function Callejero({ user, progreso, setProgreso, resultados, setResultados }) {
+export function Callejero({ user, progreso, setProgreso, resultados, setResultados, avisos = [], onAviso }) {
   const [quiz, setQuiz] = useState(null);
   const [n, setN] = useState(20);
   const [que, setQue] = useState("calles");
@@ -46,6 +47,9 @@ export function Callejero({ user, progreso, setProgreso, resultados, setResultad
   const [aviso, setAviso] = useState("");
   const [buscar, setBuscar] = useState("");
   const [verTabla, setVerTabla] = useState("calles");
+  // «⚑ Señalar esta pregunta», igual que en los tests del temario (los avisos van con id «callejero:…»)
+  const avisoPor = useMemo(() => Object.fromEntries(avisos.filter((a) => esCallejero(a.pregunta_id)).map((a) => [a.pregunta_id, a])), [avisos]);
+  const senalar = { user, avisoPor, onAviso };
   const progresoRef = useRef(progreso);
   progresoRef.current = progreso;
 
@@ -90,10 +94,10 @@ export function Callejero({ user, progreso, setProgreso, resultados, setResultad
   }
 
   if (quiz && !quiz.resultado)
-    return <Quiz quiz={quiz} senalar={null} onRespuesta={(q, r) => registrar([{ q, r }])} onTerminar={terminar} onSalir={() => setQuiz(null)} />;
+    return <Quiz quiz={quiz} senalar={senalar} onRespuesta={(q, r) => registrar([{ q, r }])} onTerminar={terminar} onSalir={() => setQuiz(null)} />;
   if (quiz && quiz.resultado)
     return (
-      <Resultado quiz={quiz} senalar={null} onVolver={() => setQuiz(null)}
+      <Resultado quiz={quiz} senalar={senalar} onVolver={() => setQuiz(null)}
         onRepetir={(ids) => empezar(quiz.preguntas.filter((q) => ids.includes(q.id)), { titulo: "Callejero · repaso de lo fallado", modo: "practica" })} />
     );
 
