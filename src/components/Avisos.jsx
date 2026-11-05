@@ -18,6 +18,17 @@ export const ESTADO_AVISO = {
   corregida: { etiqueta: "Corregida", bg: C.green, fg: "#fff", texto: "Corregida para todos." },
   descartada: { etiqueta: "Se queda como está", bg: C.steel, fg: "#fff", texto: "La revisamos y se queda como está." },
 };
+// Las preguntas del callejero se generan en la app (no están en el banco): su aviso va con el id
+// «callejero:<id>» y con la pregunta tal como la vio el usuario (las opciones cambian en cada test).
+export const PREFIJO_CALLEJERO = "callejero:";
+export const esCallejero = (id) => typeof id === "string" && id.startsWith(PREFIJO_CALLEJERO);
+export const idAviso = (q) => (q.tema === "Callejero" ? PREFIJO_CALLEJERO + q.id : q.id);
+const contextoDe = (q) => ({ pregunta: q.pregunta, opciones: q.opciones, correcta: q.correcta, explicacion: q.explicacion, etiqueta: q.etiqueta || null });
+// La pregunta de un aviso: la del banco o, si es del callejero, la que se guardó con el aviso
+const preguntaDeAviso = (a, preguntas) =>
+  esCallejero(a.pregunta_id) ? (a.contexto ? { ...a.contexto, id: a.pregunta_id, tema: "Callejero" } : null) : preguntas[a.pregunta_id];
+const deDonde = (p) => (p ? (p.tema === "Callejero" ? " del callejero" : ` del tema ${p.tema}`) : "");
+const idsDelBanco = (ids) => ids.filter((id) => !esCallejero(id));
 export const resuelto = (a) => a.estado === "corregida" || a.estado === "descartada";
 export const abierto = (a) => a.estado === "pendiente" || a.estado === "revisada";
 
@@ -30,6 +41,11 @@ const MOTIVOS = [
 ];
 const MOTIVO_TEXTO = Object.fromEntries(MOTIVOS);
 
+const FUENTES_CALLEJERO = [
+  ["norma", "Anexo III de las bases (BOPZ 170, 27/07/2026)", "Anexo III: la calle … tiene entrada por … y salida por …"],
+  ["web_oficial", "Web oficial", "Callejero del Ayuntamiento de Zaragoza"],
+  ["otra", "Otra fuente", "Dónde lo has visto"],
+];
 const FUENTES = [
   ["norma", "Ley o norma (BOE, BOA, BOPZ)", "Ley 31/1995, art. 35.2"],
   ["manual", "Manual del temario", "IVASPE, tomo 2, pág. 143"],
@@ -51,6 +67,8 @@ export function ChipEstado({ estado }) {
 /* ============ SEÑALAR UNA PREGUNTA ============ */
 // revelar = false en un examen en curso: no se puede indicar cuál es «la de ahora» sin destapar la respuesta.
 export function SenalarPregunta({ q, revelar = true, user, aviso, onAviso }) {
+  const cj = q.tema === "Callejero";
+  const fuentes = cj ? FUENTES_CALLEJERO : FUENTES;
   const [abiertoF, setAbiertoF] = useState(false);
   const [motivo, setMotivo] = useState("");
   const [opcion, setOpcion] = useState(null);
@@ -81,7 +99,7 @@ export function SenalarPregunta({ q, revelar = true, user, aviso, onAviso }) {
     setEnviando(true); setMsg(null);
     try {
       const fila = await reportarPregunta(
-        { preguntaId: q.id, motivo, comentario, opcionPropuesta: opcion, fuenteTipo, fuenteRef, fuenteUrl: url },
+        { preguntaId: idAviso(q), motivo, comentario, opcionPropuesta: opcion, fuenteTipo, fuenteRef, fuenteUrl: url, contexto: cj ? contextoDe(q) : null },
         user.id
       );
       onAviso?.(fila);
@@ -96,7 +114,7 @@ export function SenalarPregunta({ q, revelar = true, user, aviso, onAviso }) {
 
   const etiqueta = { fontSize: 14, display: "flex", alignItems: "center", gap: 8, padding: "4px 0", cursor: "pointer" };
   const sub = { fontWeight: 600, fontSize: 14, margin: "12px 0 6px" };
-  const placeholderRef = (FUENTES.find((f) => f[0] === fuenteTipo) || FUENTES[0])[2];
+  const placeholderRef = (fuentes.find((f) => f[0] === fuenteTipo) || fuentes[0])[2];
 
   return (
     <div style={{ marginTop: 10 }}>
@@ -145,13 +163,15 @@ export function SenalarPregunta({ q, revelar = true, user, aviso, onAviso }) {
           <div style={sub}>¿Dónde lo has visto? <span style={{ fontWeight: 400, color: C.inkSoft }}>(opcional, pero nos ayuda mucho)</span></div>
           <div style={{ display: "grid", gap: 6 }}>
             <select value={fuenteTipo} onChange={(e) => setFuenteTipo(e.target.value)} aria-label="Tipo de fuente" style={inputStyle}>
-              {FUENTES.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
+              {fuentes.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
             </select>
             <input value={fuenteRef} onChange={(e) => setFuenteRef(e.target.value)} maxLength={200} aria-label="Referencia" placeholder={placeholderRef} style={inputStyle} />
-            <input value={fuenteUrl} onChange={(e) => setFuenteUrl(e.target.value)} maxLength={500} aria-label="Enlace (opcional)" placeholder="Enlace (opcional): https://www.boe.es/…" inputMode="url" style={inputStyle} />
+            <input value={fuenteUrl} onChange={(e) => setFuenteUrl(e.target.value)} maxLength={500} aria-label="Enlace (opcional)" placeholder={cj ? "Enlace (opcional): https://www.zaragoza.es/…" : "Enlace (opcional): https://www.boe.es/…"} inputMode="url" style={inputStyle} />
           </div>
           <p style={{ fontSize: 13, margin: "6px 0 0", padding: "8px 10px", background: "#FFF6DB", border: `1px solid ${C.yellow}`, borderRadius: 4 }}>
-            No hace falta que subas nada: con la ley y el artículo, o el manual y la página, lo comprobamos.
+            {cj
+              ? "No hace falta que subas nada: dinos qué pone el Anexo III para esa calle o polígono y lo comprobamos."
+              : "No hace falta que subas nada: con la ley y el artículo, o el manual y la página, lo comprobamos."}
           </p>
 
           <textarea value={comentario} onChange={(e) => setComentario(e.target.value)} maxLength={1000} rows={3}
@@ -216,7 +236,8 @@ export function AvisosResueltos({ avisos, onVer, onVistos }) {
   const clave = nuevos.map((a) => a.id).join(",");
   useEffect(() => {
     if (!nuevos.length || nuevos.length > 2) return;
-    const ids = nuevos.map((a) => a.pregunta_id);
+    const ids = idsDelBanco(nuevos.map((a) => a.pregunta_id));
+    if (!ids.length) return;
     getPreguntasPorIds(ids).then((ps) => setPreguntas(Object.fromEntries(ps.map((p) => [p.id, p])))).catch(() => {});
     getCorrecciones({ preguntaIds: ids }).then((cs) => {
       const m = {};
@@ -254,7 +275,7 @@ export function AvisosResueltos({ avisos, onVer, onVistos }) {
   return (
     <>
       {nuevos.map((a) => {
-        const p = preguntas[a.pregunta_id];
+        const p = preguntaDeAviso(a, preguntas);
         const corr = correcciones[a.pregunta_id];
         const ok = a.estado === "corregida";
         const cambioRespuesta = corr?.some((c) => c.campo === "correcta");
@@ -265,8 +286,8 @@ export function AvisosResueltos({ avisos, onVer, onVistos }) {
             </div>
             <p style={{ fontSize: 14, margin: "6px 0 0" }}>
               {ok
-                ? <>Corregida la pregunta <strong>{a.pregunta_id}</strong>{p ? ` del tema ${p.tema}` : ""}. Ahora está bien para todos los opositores.</>
-                : <>La pregunta <strong>{a.pregunta_id}</strong>{p ? ` del tema ${p.tema}` : ""} se queda como está.</>}
+                ? <>Corregida la pregunta <strong>{a.pregunta_id}</strong>{deDonde(p)}. Ahora está bien para todos los opositores.</>
+                : <>La pregunta <strong>{a.pregunta_id}</strong>{deDonde(p)} se queda como está.</>}
             </p>
             {p && <div style={{ fontWeight: 600, fontSize: 14, marginTop: 8 }}>{p.pregunta}</div>}
             {ok && <AntesAhora correcciones={corr} pregunta={p} />}
@@ -303,10 +324,10 @@ export function MisAvisos({ avisos, onVolver, onRepasar, onVistos, cargando }) {
 
   const clave = avisos.map((a) => a.pregunta_id).join(",");
   useEffect(() => {
-    const ids = [...new Set(avisos.map((a) => a.pregunta_id))];
+    const ids = idsDelBanco([...new Set(avisos.map((a) => a.pregunta_id))]);
     if (ids.length) {
       getPreguntasPorIds(ids.slice(0, 300)).then((ps) => setPreguntas(Object.fromEntries(ps.map((p) => [p.id, p])))).catch(() => {});
-      const resueltos = avisos.filter((a) => a.estado === "corregida").map((a) => a.pregunta_id);
+      const resueltos = idsDelBanco(avisos.filter((a) => a.estado === "corregida").map((a) => a.pregunta_id));
       if (resueltos.length) getCorrecciones({ preguntaIds: resueltos }).then((cs) => {
         const m = {};
         cs.forEach((c) => (m[c.pregunta_id] ||= []).push(c));
@@ -352,7 +373,7 @@ export function MisAvisos({ avisos, onVolver, onRepasar, onVistos, cargando }) {
       <Card>
         {avisos.length === 0 ? (
           <>
-            <Vacio texto="Aún no has señalado ninguna pregunta. Cuando una te parezca mal, pulsa «⚑ Señalar esta pregunta» en el test y aparecerá aquí." />
+            <Vacio texto="Aún no has señalado ninguna pregunta. Cuando una te parezca mal, pulsa «⚑ Señalar esta pregunta» en el test (también en el callejero) y aparecerá aquí." />
             <button onClick={onVolver} style={{ ...btnStyle(), marginTop: 10 }}>Hacer un test</button>
           </>
         ) : (
@@ -367,14 +388,15 @@ export function MisAvisos({ avisos, onVolver, onRepasar, onVistos, cargando }) {
             </div>
             {lista.length === 0 && <Vacio texto="No hay avisos en este grupo." />}
             {lista.map((a) => {
-              const p = preguntas[a.pregunta_id];
+              const p = preguntaDeAviso(a, preguntas);
+              const cj = esCallejero(a.pregunta_id);
               const e = ESTADO_AVISO[a.estado] || ESTADO_AVISO.pendiente;
               const ver = abiertoId === a.id;
               return (
                 <div key={a.id} style={{ borderTop: `1px solid ${C.line}`, padding: "12px 0" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", fontSize: 12, color: C.inkSoft }}>
                     <ChipEstado estado={a.estado} />
-                    <span>{p ? `Tema ${p.tema} · ` : ""}{a.pregunta_id} · {fmtDia(a.updated_at || a.created_at)}</span>
+                    <span>{cj ? "Callejero · " : p ? `Tema ${p.tema} · ` : ""}{cj ? p?.etiqueta?.replace(/^Callejero · /, "") || "pregunta" : a.pregunta_id} · {fmtDia(a.updated_at || a.created_at)}</span>
                   </div>
                   <div style={{ fontSize: 14, fontWeight: 600, margin: "6px 0 2px", display: "-webkit-box", WebkitLineClamp: ver ? "unset" : 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
                     {p ? p.pregunta : "…"}
@@ -387,7 +409,7 @@ export function MisAvisos({ avisos, onVolver, onRepasar, onVistos, cargando }) {
                   {a.respuesta_revisor
                     ? <div style={{ fontSize: 13, marginTop: 6, paddingLeft: 10, borderLeft: `3px solid ${e.bg}` }}><em>«{a.respuesta_revisor}»</em></div>
                     : <div style={{ fontSize: 13, marginTop: 6, color: C.inkSoft }}>{e.texto}</div>}
-                  {resuelto(a) && p && (
+                  {resuelto(a) && p && !cj && (
                     <div style={{ display: "flex", gap: 12, marginTop: 6, flexWrap: "wrap" }}>
                       <button onClick={() => setAbiertoId(ver ? null : a.id)} aria-expanded={ver}
                         style={{ background: "none", border: "none", padding: 0, fontSize: 13, fontFamily: FONT_BODY, color: C.red, textDecoration: "underline", textUnderlineOffset: 3 }}>
@@ -399,7 +421,7 @@ export function MisAvisos({ avisos, onVolver, onRepasar, onVistos, cargando }) {
                       </button>
                     </div>
                   )}
-                  {ver && p && (
+                  {ver && p && !cj && (
                     <div style={{ marginTop: 8, fontSize: 14 }}>
                       {p.opciones.map((op, i) => (
                         <div key={i} style={{ padding: "3px 0", color: i === p.correcta ? C.green : C.ink, fontWeight: i === p.correcta ? 700 : 400 }}>

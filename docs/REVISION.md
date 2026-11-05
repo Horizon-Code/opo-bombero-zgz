@@ -68,6 +68,23 @@ Plantillas de frase:
 - Se queda como está: *«La respuesta es correcta según [fuente]. Hemos aclarado el enunciado para que no confunda.»*
 - Normativa: *«Según la convocatoria entra la redacción anterior a la reforma, así que la dejamos.»*
 
+### Avisos del callejero
+Las preguntas del callejero no están en el banco: la app las genera con el Anexo III. Su aviso llega con el id
+`callejero:<tipo>:<item>` (p. ej. `callejero:entrada:c012`) y con la pregunta tal como la vio el usuario en `contexto`.
+```sql
+select pregunta_id, motivo, contexto->>'pregunta' as pregunta, contexto->'opciones' as opciones,
+       contexto->>'correcta' as correcta, fuente_ref, comentario, created_at
+from public.reportes_preguntas where pregunta_id like 'callejero:%' and estado in ('pendiente', 'revisada')
+order by created_at;
+```
+El arreglo se hace en `src/data/callejero.json` (o en el generador, `src/lib/callejero.js`), y luego:
+```sql
+-- Corregida: el cuarto parámetro (true) borra el fallo a quien la falló con el dato malo
+select resolver_callejero('callejero:entrada:c012', 'corregida', 'Tenías razón: en el Anexo III la entrada es …. Corregido.', true);
+-- Se queda como está
+select resolver_callejero('callejero:entrada:c012', 'descartada', 'El Anexo III dice exactamente eso: entrada por ….');
+```
+
 ## 3. Ojo con el import
 Cada pregunta corregida con `resolver_pregunta` queda marcada (`banco_preguntas.editada_at`) y
 `scripts/importar-banco.mjs` **no la sobrescribe**. Lleva también la corrección al corpus
