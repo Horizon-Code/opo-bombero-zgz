@@ -6,7 +6,7 @@ import {
   statsBloques, statsDe, estado, idsDeBloques, elegir, simulacro, corregir,
 } from "../lib/banco";
 import { getPreguntasPorIds, guardarProgreso, addResultado } from "../lib/supabase";
-import { SenalarPregunta, MisAvisos, abierto as avisoAbierto } from "./Avisos";
+import { SenalarPregunta, MisAvisos, abierto as avisoAbierto, idAviso } from "./Avisos";
 
 const fmtN = (n) => n.toLocaleString("es-ES");
 const LETRAS = "abc";
@@ -368,7 +368,7 @@ export function Quiz({ quiz, senalar, onRespuesta, onTerminar, onSalir }) {
         })}
       </div>
 
-      {senalar && <SenalarPregunta key={q.id} q={q} revelar={!examen} user={senalar.user} aviso={senalar.avisoPor[q.id]} onAviso={senalar.onAviso} />}
+      {senalar && <SenalarPregunta key={q.id} q={q} revelar={!examen} user={senalar.user} aviso={senalar.avisoPor[idAviso(q)]} onAviso={senalar.onAviso} />}
 
       {!examen && !mostrado && (
         <button onClick={() => { const r = [...resp]; r[idx] = null; setResp(r); setMostrado(true); onRespuesta(q, null); }}
@@ -469,7 +469,7 @@ export function Resultado({ quiz, senalar, onVolver, onRepetir }) {
               {r != null && <div style={{ color: C.red }}>Tu respuesta: {LETRAS[r]}) {q.opciones[r]}</div>}
               <div style={{ color: C.green }}>Correcta: {LETRAS[q.correcta]}) {q.opciones[q.correcta]}</div>
               <div style={{ color: C.inkSoft, marginTop: 4 }}>{q.explicacion}</div>
-              {senalar && <SenalarPregunta q={q} user={senalar.user} aviso={senalar.avisoPor[q.id]} onAviso={senalar.onAviso} />}
+              {senalar && <SenalarPregunta q={q} user={senalar.user} aviso={senalar.avisoPor[idAviso(q)]} onAviso={senalar.onAviso} />}
             </div>
           ))}
         </Card>

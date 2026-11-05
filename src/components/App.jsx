@@ -184,7 +184,8 @@ export default function App() {
             avisos={avisos} onAviso={onAviso} onVistos={onVistos} vista={vistaTests} setVista={setVistaTests} />
         )}
         {tab === "callejero" && (
-          <Callejero user={user} progreso={progresoCallejero} setProgreso={setProgresoCallejero} resultados={resultados} setResultados={setResultados} />
+          <Callejero user={user} progreso={progresoCallejero} setProgreso={setProgresoCallejero} resultados={resultados} setResultados={setResultados}
+            avisos={avisos} onAviso={onAviso} />
         )}
         {tab === "fisico" && <FisicoProximamente />}
       </main>

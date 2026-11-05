@@ -77,7 +77,7 @@ export const getProgreso = async () => {
 /* ---------- avisos: preguntas señaladas por el usuario ---------- */
 // Un aviso por persona y pregunta: si la vuelve a señalar, se actualiza y queda pendiente otra vez
 // (un trigger de la migración 6 limpia la respuesta del revisor anterior).
-export const reportarPregunta = async ({ preguntaId, motivo, comentario, opcionPropuesta, fuenteTipo, fuenteRef, fuenteUrl }, userId) => {
+export const reportarPregunta = async ({ preguntaId, motivo, comentario, opcionPropuesta, fuenteTipo, fuenteRef, fuenteUrl, contexto = null }, userId) => {
   const limpio = (t, max) => (t?.trim() ? t.trim().slice(0, max) : null);
   const base = {
     user_id: userId, pregunta_id: preguntaId, motivo,
@@ -90,6 +90,7 @@ export const reportarPregunta = async ({ preguntaId, motivo, comentario, opcionP
     fuente_tipo: limpio(fuenteRef, 200) || limpio(fuenteUrl, 500) ? fuenteTipo || "otra" : null,
     fuente_ref: limpio(fuenteRef, 200),
     fuente_url: limpio(fuenteUrl, 500),
+    contexto,                         // solo callejero: la pregunta tal como se vio (migración 8)
   };
   const tabla = supabase.from("reportes_preguntas");
   let { data, error } = await tabla.upsert(conFuente, { onConflict: "user_id,pregunta_id" }).select(CAMPOS_AVISO).single();
@@ -109,7 +110,7 @@ export const reportarPregunta = async ({ preguntaId, motivo, comentario, opcionP
   return data;
 };
 const CAMPOS_AVISO =
-  "id,pregunta_id,motivo,comentario,opcion_propuesta,fuente_tipo,fuente_ref,fuente_url,estado,respuesta_revisor,resuelto_at,visto_at,created_at,updated_at";
+  "id,pregunta_id,contexto,motivo,comentario,opcion_propuesta,fuente_tipo,fuente_ref,fuente_url,estado,respuesta_revisor,resuelto_at,visto_at,created_at,updated_at";
 // Todos los avisos del usuario (RLS: solo los suyos). Si la migración 6 no está aplicada, cae a lo básico.
 export const getMisAvisos = async () => {
   let { data, error } = await supabase.from("reportes_preguntas").select(CAMPOS_AVISO).order("created_at", { ascending: false });
