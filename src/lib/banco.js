@@ -1,6 +1,7 @@
 // Lógica del banco fijo: estructura del temario, progreso por tema/nodo/bloque
 // (las «bolitas») y selección de preguntas para cada tipo de test.
 import estructura from "../data/estructura.json";
+import combinadas from "../data/combinadas.json";
 
 export { estructura };
 export const TOTAL_PREGUNTAS = estructura.total;
@@ -57,7 +58,19 @@ const barajar = (a) => { const x = [...a]; for (let i = x.length - 1; i > 0; i--
 
 export const idsDeBloques = (bloqueIds) => [...new Set(bloqueIds.flatMap((id) => bloquePorId[id]?.ids || []))];
 
-function peso(p, criterio) {
+// Opción combinada («a) y b) son correctas», «Ninguna es correcta»…): en el banco es la buena en el
+// 73 % de las preguntas que la llevan, y quien lo nota acierta sin saber. Para que en los tests no compense
+// marcarla a ciegas, las preguntas en que la combinada es la buena salen con menos peso, de modo que entre
+// las que llevan combinada lo sea más o menos en el 40 % (al azar sería el 33 %). No se aplica al repasar falladas.
+const COMB_BUENA = new Set(combinadas.correcta);
+export const OBJETIVO_COMBINADA = 0.4;
+const FACTOR_COMBINADA = Math.min(1, (OBJETIVO_COMBINADA / (1 - OBJETIVO_COMBINADA)) * (combinadas.otra.length / Math.max(1, combinadas.correcta.length)));
+
+function peso(p, criterio, id) {
+  const w = pesoBase(p, criterio);
+  return w > 0 && criterio !== "falladas" && COMB_BUENA.has(id) ? w * FACTOR_COMBINADA : w;
+}
+function pesoBase(p, criterio) {
   if (criterio === "azar") return 1;
   if (!p || !p.vistas) return criterio === "falladas" ? 0 : 4;          // nunca vista
   if (p.ultimo_resultado === false) return criterio === "nuevas" ? 0 : 6; // fallada la última vez
@@ -68,7 +81,7 @@ function peso(p, criterio) {
 // Muestreo ponderado sin reemplazo (Efraimidis-Spirakis)
 function muestrear(ids, n, criterio, progreso) {
   return ids
-    .map((id) => ({ id, w: peso(progreso[id], criterio) }))
+    .map((id) => ({ id, w: peso(progreso[id], criterio, id) }))
     .filter((x) => x.w > 0)
     .map((x) => ({ id: x.id, k: Math.pow(Math.random(), 1 / x.w) }))
     .sort((a, b) => b.k - a.k)
