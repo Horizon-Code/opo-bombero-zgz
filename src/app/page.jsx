@@ -106,16 +106,7 @@ const filaP = { fontSize: 18, fontWeight: 700, lineHeight: 1.3 };
 const filaR = { fontSize: 16, lineHeight: 1.45, color: "#D5D9DD" };
 const aqui = <strong style={{ color: K.amarillo }}>Aquí:</strong>;
 const tarjeta = { background: "#fff", border: `1px solid ${K.linea}`, borderRadius: 6 };
-const dato = (color) => ({ borderLeft: `4px solid ${color}`, padding: "4px 0 4px 14px" });
-const datoN = { fontFamily: DISPLAY, fontWeight: 800, fontSize: 30, lineHeight: 1 };
-const datoT = { fontSize: 14, color: K.gris };
 const franja = { height: 10, background: `repeating-linear-gradient(135deg, ${K.rojo} 0 14px, ${K.amarillo} 14px 28px)` };
-const PROCESO = [
-  [K.azul, "La IA lee el temario", "Cada pregunta nace de una frase concreta de la norma o del manual oficial, y la frase se guarda con ella."],
-  [K.azul, "Medido con el examen real", "Pasamos el banco por el examen oficial de 2022 y buscamos en los temas de la Escuela y en las leyes lo que faltaba."],
-  [K.verde, "Ves de dónde sale", "Al corregir te enseñamos la frase exacta. Si no cuadra, lo ves tú mismo."],
-  [K.rojo, "Tú avisas, nosotros corregimos", "Señala cualquier fallo con su fuente. Lo revisamos, lo corregimos para todos y te avisamos."],
-];
 const MOVIL = [
   [1, "La Constitución", K.verde, K.verdeOsc, "Dominado"],
   [12, "Vehículos del SCIS", K.verde, K.verdeOsc, "Dominado"],
@@ -161,7 +152,6 @@ export default async function Landing() {
               [CALLEJERO, "preguntas de callejero", K.amarillo],
               ["100 / 75′", "simulacro: preguntas y minutos", K.azul],
               ["0 €", "todo incluido, también el callejero", K.verde],
-              ["99 de 100", "preguntas del examen de 2022 que puedes preparar aquí", K.tinta],
             ].map(([v, t, c]) => (
               <div key={t} style={{ ...tarjeta, borderTop: `5px solid ${c}`, padding: "16px 18px" }}>
                 <div style={{ fontFamily: DISPLAY, fontWeight: 800, fontSize: 34, lineHeight: 1.05 }}>{v}</div>
@@ -210,24 +200,6 @@ export default async function Landing() {
           <p style={kicker(K.rojo)}>Inteligencia artificial al servicio de los futuros bomberos</p>
           <h2 id="h-como" style={titulo(32, 44)}>Lo que una persona tardaría años, la IA lo hace en semanas</h2>
           <p style={{ margin: 0, maxWidth: 860, fontSize: 18, lineHeight: 1.55, color: K.tinta2 }}>Somos expertos en inteligencia artificial y la usamos para lo que mejor sabe hacer: leer las normas y los manuales de los 40 temas sin saltarse una línea y convertir cada dato que puede caer en una pregunta. Por eso hay {TOTAL} y no unos cientos. Y como cada pregunta va atada a la frase oficial de la que sale, puedes comprobarla tú mismo.</p>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
-            <div style={dato(K.rojo)}><div style={datoN}>40 de 40</div><div style={datoT}>temas del Anexo I con preguntas</div></div>
-            <div style={dato(K.azul)}><div style={datoN}>1 frase oficial</div><div style={datoT}>detrás de cada pregunta, a la vista</div></div>
-            <div style={dato(K.amarillo)}><div style={datoN}>3 opciones</div><div style={datoT}>y una sola correcta, como en el examen</div></div>
-            <div style={dato(K.verde)}><div style={datoN}>99 de 100</div><div style={datoT}>del examen oficial de 2022, cubiertas</div></div>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: 14 }}>
-            {PROCESO.map(([color, t, x], i) => (
-              <div key={t} style={{ ...tarjeta, padding: "18px 20px", display: "flex", flexDirection: "column", gap: 8 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ width: 34, height: 34, borderRadius: "50%", background: color, color: "#fff", display: "inline-flex", alignItems: "center", justifyContent: "center", fontFamily: DISPLAY, fontWeight: 800, fontSize: 18, flex: "none" }}>{i + 1}</span>
-                  <h3 style={{ margin: 0, fontSize: 19, fontWeight: 700 }}>{t}</h3>
-                </div>
-                <p style={{ margin: 0, fontSize: 15, lineHeight: 1.5, color: K.tinta2 }}>{x}</p>
-              </div>
-            ))}
-          </div>
-
           <div style={{ display: "flex", flexWrap: "wrap", gap: 40, alignItems: "center", marginTop: 24 }}>
             <div style={{ flex: "1 1 320px", minWidth: 0, display: "flex", flexDirection: "column", gap: 14 }}>
               <h3 style={titulo(28, 32)}>Así estudias</h3>
@@ -241,15 +213,15 @@ export default async function Landing() {
               <div style={{ display: "flex", flexWrap: "wrap", gap: 24, justifyContent: "center", alignItems: "flex-start" }}>
                 <div style={{ width: 270, maxWidth: "100%", border: `9px solid ${K.tinta}`, borderRadius: 32, background: K.fondo, overflow: "hidden", boxShadow: "0 18px 40px rgba(22,25,29,0.22)", boxSizing: "border-box" }}>
                   <div style={{ background: K.tinta, color: "#fff", padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                    <span style={{ fontFamily: DISPLAY, fontWeight: 800, fontSize: 17, textTransform: "uppercase", letterSpacing: 0.5 }}>Test · Tema 29</span>
+                    <span style={{ fontFamily: DISPLAY, fontWeight: 800, fontSize: 17, textTransform: "uppercase", letterSpacing: 0.5 }}>Test · Tema 7</span>
                     <span style={{ fontSize: 13, color: "#C9CED4" }}>7 de 20</span>
                   </div>
                   <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 8 }}>
-                    <div style={{ fontSize: 16, fontWeight: 700, lineHeight: 1.3 }}>Un FLUIDO es:</div>
-                    <div style={{ background: "#fff", border: `2px solid ${K.linea}`, borderRadius: 6, padding: "8px 10px", fontSize: 13, lineHeight: 1.35 }}><strong>a)</strong> Toda sustancia en estado líquido capaz de fluir…</div>
-                    <div style={{ background: "#EAF4EE", border: `2px solid ${K.verde}`, borderRadius: 6, padding: "8px 10px", fontSize: 13, lineHeight: 1.35 }}><strong>b)</strong> Toda sustancia capaz de fluir, ya sea líquido o gas. <strong style={{ color: K.verdeOsc }}>✓</strong></div>
-                    <div style={{ background: "#fff", border: `2px solid ${K.linea}`, borderRadius: 6, padding: "8px 10px", fontSize: 13, lineHeight: 1.35 }}><strong>c)</strong> Toda sustancia de volumen y forma definidos…</div>
-                    <div style={{ background: "#fff", borderRadius: 6, padding: "9px 10px", fontSize: 12, lineHeight: 1.4, color: K.tinta2 }}><strong style={{ color: K.azul }}>Sale de:</strong> «FLUIDO: toda sustancia capaz de FLUIR, ya sea LÍQUIDO o GAS.»</div>
+                    <div style={{ fontSize: 16, fontWeight: 700, lineHeight: 1.3 }}>Fallece el padre de un bombero, que residía en otra localidad. Según el TREBEP, le corresponden:</div>
+                    <div style={{ background: "#EAF4EE", border: `2px solid ${K.verde}`, borderRadius: 6, padding: "8px 10px", fontSize: 13, lineHeight: 1.35 }}><strong>a)</strong> Cinco días hábiles <strong style={{ color: K.verdeOsc }}>✓</strong></div>
+                    <div style={{ background: "#fff", border: `2px solid ${K.linea}`, borderRadius: 6, padding: "8px 10px", fontSize: 13, lineHeight: 1.35 }}><strong>b)</strong> Tres días hábiles</div>
+                    <div style={{ background: "#fff", border: `2px solid ${K.linea}`, borderRadius: 6, padding: "8px 10px", fontSize: 13, lineHeight: 1.35 }}><strong>c)</strong> Cuatro días hábiles</div>
+                    <div style={{ background: "#fff", borderRadius: 6, padding: "9px 10px", fontSize: 12, lineHeight: 1.4, color: K.tinta2 }}>Padre = primer grado, y en otra localidad: cinco días. Tres serían en la misma localidad; cuatro, un familiar de segundo grado fuera. <strong style={{ color: K.azul }}>Sale de:</strong> TREBEP, art. 48.a)</div>
                     <div style={{ background: K.rojo, color: "#fff", borderRadius: 4, textAlign: "center", padding: 9, fontFamily: DISPLAY, fontWeight: 800, fontSize: 15, textTransform: "uppercase", letterSpacing: 1 }}>Siguiente</div>
                   </div>
                 </div>
