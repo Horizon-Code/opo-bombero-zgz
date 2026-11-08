@@ -7,6 +7,7 @@ import Camiseta from "../components/Camiseta";
 import { SITE } from "../lib/site";
 import { todasLasPreguntas, CALLES, POLIGONOS } from "../lib/callejero";
 import datos from "../data/landing.json";
+import AsiEstudias from "../components/landing/AsiEstudias";
 import Demo from "../components/landing/Demo";
 import Recorridos from "../components/landing/Recorridos";
 import ExploradorTemario from "../components/landing/ExploradorTemario";
@@ -107,14 +108,6 @@ const filaR = { fontSize: 16, lineHeight: 1.45, color: "#D5D9DD" };
 const aqui = <strong style={{ color: K.amarillo }}>Aquí:</strong>;
 const tarjeta = { background: "#fff", border: `1px solid ${K.linea}`, borderRadius: 6 };
 const franja = { height: 10, background: `repeating-linear-gradient(135deg, ${K.rojo} 0 14px, ${K.amarillo} 14px 28px)` };
-const MOVIL = [
-  [1, "La Constitución", K.verde, K.verdeOsc, "Dominado"],
-  [12, "Vehículos del SCIS", K.verde, K.verdeOsc, "Dominado"],
-  [17, "Agentes extintores", K.amarillo, "#7A5500", "Lo vas aprendiendo"],
-  [23, "Principios de la construcción", K.rojo, K.rojoOsc, "Fallado la última vez"],
-  [29, "Hidráulica", K.amarillo, "#7A5500", "Lo vas aprendiendo"],
-  [32, "Primeros auxilios", "#AEB5BD", K.gris, "Sin practicar"],
-];
 
 
 export default async function Landing() {
@@ -169,7 +162,7 @@ export default async function Landing() {
               <p style={kicker(K.amarillo)}>Antes de fiarte de un test, hazle cinco preguntas</p>
               <h2 id="h-decides" style={{ ...titulo(32, 48), fontWeight: 900, lineHeight: 0.95, maxWidth: 960 }}>Cinco cosas que puedes comprobar en cualquier web de tests. También en esta.</h2>
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                <div style={fila}><div style={filaP}>1. ¿Puedo ver una pregunta antes de registrarme o pagar?</div><div style={filaR}>{aqui} sí, arriba tienes una, y otra, y otra. Y cuando entres sigue siendo gratis.</div></div>
+                <div style={fila}><div style={filaP}>1. ¿Puedo ver una pregunta antes de registrarme o pagar?</div><div style={filaR}>{aqui} sí, arriba tienes una, y otra, y otra.</div></div>
                 <div style={fila}><div style={filaP}>2. ¿Cada pregunta dice de qué frase oficial sale?</div><div style={filaR}>{aqui} sí, las {TOTAL}. La ves al corregir. En el examen no puntúa lo que alguien recuerda: puntúa lo que dice la norma.</div></div>
                 <div style={fila}><div style={filaP}>3. ¿Está hecho sobre las bases de 2026?</div><div style={filaR}>{aqui} sí. Los 40 temas del Anexo I y el callejero del Anexo III del BOPZ núm. 170, de 27 de julio de 2026.</div></div>
                 <div style={fila}><div style={filaP}>4. ¿Qué pasa cuando encuentro un error?</div><div style={filaR}>{aqui} lo señalas con un botón, también en el callejero. Lo revisamos, se corrige para todos, te avisamos y queda en el registro de correcciones, con fecha.</div></div>
@@ -200,52 +193,7 @@ export default async function Landing() {
           <p style={kicker(K.rojo)}>Inteligencia artificial al servicio de los futuros bomberos</p>
           <h2 id="h-como" style={titulo(32, 44)}>Lo que una persona tardaría años, la IA lo hace en semanas</h2>
           <p style={{ margin: 0, maxWidth: 860, fontSize: 18, lineHeight: 1.55, color: K.tinta2 }}>Somos expertos en inteligencia artificial y la usamos para lo que mejor sabe hacer: leer las normas y los manuales de los 40 temas sin saltarse una línea y convertir cada dato que puede caer en una pregunta. Por eso hay {TOTAL} y no unos cientos. Y como cada pregunta va atada a la frase oficial de la que sale, puedes comprobarla tú mismo.</p>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 40, alignItems: "center", marginTop: 24 }}>
-            <div style={{ flex: "1 1 320px", minWidth: 0, display: "flex", flexDirection: "column", gap: 14 }}>
-              <h3 style={titulo(28, 32)}>Así estudias</h3>
-              <ol style={{ margin: 0, paddingLeft: 22, fontSize: 17, lineHeight: 1.7, color: K.tinta2 }}>
-                <li><strong>Elige qué estudiar:</strong> un tema, un subtema, todo al azar o el callejero. Primero salen las que fallaste y las que nunca has visto.</li>
-                <li><strong>Responde y aprende:</strong> se corrige al momento, con su explicación y la frase exacta del temario.</li>
-                <li><strong>Mira tu avance:</strong> cada tema, subtema y apartado tiene su color. Sabes de un vistazo dónde reforzar.</li>
-              </ol>
-            </div>
-            <figure style={{ flex: "1 1 540px", minWidth: 0, margin: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 24, justifyContent: "center", alignItems: "flex-start" }}>
-                <div style={{ width: 270, maxWidth: "100%", border: `9px solid ${K.tinta}`, borderRadius: 32, background: K.fondo, overflow: "hidden", boxShadow: "0 18px 40px rgba(22,25,29,0.22)", boxSizing: "border-box" }}>
-                  <div style={{ background: K.tinta, color: "#fff", padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                    <span style={{ fontFamily: DISPLAY, fontWeight: 800, fontSize: 17, textTransform: "uppercase", letterSpacing: 0.5 }}>Test · Tema 7</span>
-                    <span style={{ fontSize: 13, color: "#C9CED4" }}>7 de 20</span>
-                  </div>
-                  <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 8 }}>
-                    <div style={{ fontSize: 16, fontWeight: 700, lineHeight: 1.3 }}>Fallece el padre de un bombero, que residía en otra localidad. Según el TREBEP, le corresponden:</div>
-                    <div style={{ background: "#EAF4EE", border: `2px solid ${K.verde}`, borderRadius: 6, padding: "8px 10px", fontSize: 13, lineHeight: 1.35 }}><strong>a)</strong> Cinco días hábiles <strong style={{ color: K.verdeOsc }}>✓</strong></div>
-                    <div style={{ background: "#fff", border: `2px solid ${K.linea}`, borderRadius: 6, padding: "8px 10px", fontSize: 13, lineHeight: 1.35 }}><strong>b)</strong> Tres días hábiles</div>
-                    <div style={{ background: "#fff", border: `2px solid ${K.linea}`, borderRadius: 6, padding: "8px 10px", fontSize: 13, lineHeight: 1.35 }}><strong>c)</strong> Cuatro días hábiles</div>
-                    <div style={{ background: "#fff", borderRadius: 6, padding: "9px 10px", fontSize: 12, lineHeight: 1.4, color: K.tinta2 }}>Padre = primer grado, y en otra localidad: cinco días. Tres serían en la misma localidad; cuatro, un familiar de segundo grado fuera. <strong style={{ color: K.azul }}>Sale de:</strong> TREBEP, art. 48.a)</div>
-                    <div style={{ background: K.rojo, color: "#fff", borderRadius: 4, textAlign: "center", padding: 9, fontFamily: DISPLAY, fontWeight: 800, fontSize: 15, textTransform: "uppercase", letterSpacing: 1 }}>Siguiente</div>
-                  </div>
-                </div>
-                <div style={{ width: 270, maxWidth: "100%", border: `9px solid ${K.tinta}`, borderRadius: 32, background: K.fondo, overflow: "hidden", boxShadow: "0 18px 40px rgba(22,25,29,0.22)", boxSizing: "border-box" }}>
-                  <div style={{ background: K.tinta, color: "#fff", padding: "12px 16px" }}>
-                    <span style={{ fontFamily: DISPLAY, fontWeight: 800, fontSize: 17, textTransform: "uppercase", letterSpacing: 0.5 }}>Tu avance por tema</span>
-                  </div>
-                  <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 7 }}>
-                    {MOVIL.map(([n, t, color, tinta, estado]) => (
-                      <div key={n} style={{ background: "#fff", borderRadius: 6, padding: "8px 10px", display: "flex", alignItems: "center", gap: 9, borderLeft: `5px solid ${color}` }}>
-                        <span style={{ fontFamily: DISPLAY, fontWeight: 800, fontSize: 18, width: 22, textAlign: "right", flex: "none" }}>{n}</span>
-                        <span style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
-                          <span style={{ fontSize: 13, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t}</span>
-                          <span style={{ fontSize: 12, color: tinta, fontWeight: 600 }}>{estado}</span>
-                        </span>
-                      </div>
-                    ))}
-                    <div style={{ background: K.rojo, color: "#fff", borderRadius: 4, textAlign: "center", padding: 9, fontFamily: DISPLAY, fontWeight: 800, fontSize: 15, textTransform: "uppercase", letterSpacing: 1 }}>Repasar falladas</div>
-                  </div>
-                </div>
-              </div>
-              <figcaption style={{ fontSize: 13, color: K.gris }}>Así se ve la app (dibujo simplificado).</figcaption>
-            </figure>
-          </div>
+          <AsiEstudias />
         </section>
 
         {/* ====== callejero ====== */}
