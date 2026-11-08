@@ -47,7 +47,7 @@ export function rechazo(q, nueva) {
 }
 
 const nuevas = {};
-for (const f of fs.readdirSync(reescrituras).filter((x) => /^[LM]\d+\.json$/.test(x)).sort()) {
+for (const f of fs.readdirSync(reescrituras).filter((x) => /^[A-Z]\d+\.json$/.test(x)).sort()) {
   let obj;
   try { obj = JSON.parse(fs.readFileSync(path.join(reescrituras, f), "utf8")); }
   catch (e) { console.error(`${f}: JSON inválido (${e.message})`); continue; }
