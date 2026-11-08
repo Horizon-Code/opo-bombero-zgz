@@ -128,3 +128,7 @@
   .camIn { padding: 24px 18px; }
   .camFotos { padding: 12px; }
 }
+
+/* «Así estudias»: las notas de la izquierda van alineadas al móvil; en pantallas estrechas, a la izquierda */
+.notaIzq { text-align: right; align-items: flex-end; }
+@media (max-width: 700px) { .notaIzq { text-align: left; align-items: flex-start; } }
