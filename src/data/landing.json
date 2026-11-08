@@ -1,16 +1,18 @@
 {
- "_nota": "Datos de la landing. Las demos y los ejemplos son preguntas reales del banco (comprobadas el 05/11/2026). Los recorridos se comprobaron en Google Maps en coche.",
+ "_nota": "Datos de la landing. Las demos y los ejemplos son preguntas reales del banco (comprobadas el 08/11/2026; las demos usan preguntas con la explicación ya reescrita). Los recorridos se comprobaron en Google Maps en coche.",
  "demos": [
   {
-   "etiqueta": "Tema 12",
-   "pregunta": "La capacidad de cisterna de las BUL está comprendida entre:",
+   "etiqueta": "Tema 9",
+   "pregunta": "Ante un edificio con riesgo de colapso, los bomberos ordenan provisionalmente su desalojo. Según el art. 2.2.l) de la Ley 1/2013, esa medida:",
    "opciones": [
-    "1.300 y 2.500 L",
-    "1.500 y 2.500 L",
-    "1.300 y 3.000 L"
+    "Tiene carácter definitivo hasta su revisión judicial",
+    "Se adopta a la espera de la decisión de la autoridad competente",
+    "Requiere la previa autorización del Alcalde"
    ],
-   "correcta": 0,
-   "cita": "Cisterna entre 1.300 y 2.500 L."
+   "correcta": 1,
+   "explicacion": "El desalojo de un edificio con riesgo de colapso es una medida extraordinaria y provisional que se adopta a la espera de que decida la autoridad competente. No es definitiva (a), y no necesita una autorización previa del Alcalde (c), porque por su urgencia la autoridad decide después.",
+   "cita": "medidas de seguridad extraordinarias y provisionales de cierre, desalojo y evacuación",
+   "fuente": "Ley 1/2013 de Aragón, art. 2.2.l)"
   },
   {
    "etiqueta": "Callejero",
@@ -21,40 +23,35 @@
     "Corona de Aragón"
    ],
    "correcta": 1,
-   "cita": "Anexo III: calle Ávila — entrada por Valencia y salida por Santander."
+   "explicacion": "La calle Ávila tiene la entrada por Valencia y la salida por Santander.",
+   "cita": "Calle Ávila — entrada: Valencia · salida: Santander",
+   "fuente": "Anexo III de la convocatoria"
   },
   {
-   "etiqueta": "Tema 29",
-   "pregunta": "Un FLUIDO es:",
+   "etiqueta": "Tema 7",
+   "pregunta": "Fallece el padre de un bombero, que residía en otra localidad. Según el art. 48.a) del TREBEP, le corresponden:",
    "opciones": [
-    "Toda sustancia en estado líquido capaz de fluir por una conducción.",
-    "Toda sustancia capaz de fluir, ya sea líquido o gas.",
-    "Toda sustancia de volumen y forma definidos capaz de transmitir presiones."
+    "Cinco días hábiles",
+    "Tres días hábiles",
+    "Cuatro días hábiles"
    ],
-   "correcta": 1,
-   "cita": "FLUIDO: toda sustancia capaz de FLUIR, ya sea LÍQUIDO o GAS."
+   "correcta": 0,
+   "explicacion": "El padre es familiar de primer grado y residía en otra localidad, así que corresponden cinco días hábiles. Tres (b) serían en la misma localidad, y cuatro (c) es lo de un familiar de segundo grado en distinta localidad.",
+   "cita": "Por fallecimiento del cónyuge, pareja de hecho o familiar de primer grado: tres días hábiles en la misma localidad y cinco en distinta localidad.",
+   "fuente": "TREBEP, art. 48.a)"
   },
   {
-   "etiqueta": "Tema 32",
-   "pregunta": "A efectos de RCP en el soporte vital básico, se considera NIÑO a la víctima:",
+   "etiqueta": "Tema 8",
+   "pregunta": "Por necesidades del servicio, una formación preventiva para bomberos no puede impartirse dentro de la jornada y se programa fuera de ella. Según el art. 19.2 de la LPRL:",
    "opciones": [
-    "Desde 1 año hasta los 12 años",
-    "Desde 1 año hasta los 8 años",
-    "Desde 1 año hasta los 14 años"
+    "Se impartirá en otras horas, pero con el descuento en la jornada del tiempo invertido",
+    "Se impartirá en otras horas sin descuento en la jornada, al ser obligatoria",
+    "No podrá impartirse fuera de la jornada de trabajo en ningún caso"
    ],
-   "correcta": 1,
-   "cita": "NIÑOS: desde 1 año hasta los 8 años de edad."
-  },
-  {
-   "etiqueta": "Tema 1",
-   "pregunta": "Conforme a los datos oficiales de la norma en el BOE, la Constitución Española entró en vigor:",
-   "opciones": [
-    "El 30 de diciembre de 1978, al día siguiente de su publicación",
-    "El 29 de diciembre de 1978, el mismo día de su publicación",
-    "El 27 de diciembre de 1978, el mismo día de su sanción por el Rey"
-   ],
-   "correcta": 1,
-   "cita": "29 de diciembre de 1978, el mismo día de su publicación."
+   "correcta": 0,
+   "explicacion": "La formación se da, siempre que se pueda, dentro de la jornada; si no se puede, en otras horas, pero descontando de la jornada el tiempo invertido. La b) elimina ese descuento, y la c) prohíbe una posibilidad que la Ley admite.",
+   "cita": "Se impartirá siempre que sea posible dentro de la jornada de trabajo o, en su defecto, en otras horas pero con el descuento en aquélla del tiempo invertido.",
+   "fuente": "Ley 31/1995 de PRL, art. 19.2"
   }
  ],
  "ejemplos": {

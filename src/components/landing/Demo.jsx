@@ -30,7 +30,8 @@ export default function Demo({ demos, total }) {
       {el != null && (
         <div role="status" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <div style={{ background: "#F4F5F6", borderRadius: 6, padding: "12px 14px", fontSize: 15, lineHeight: 1.45, color: K.tinta2 }}>
-            <strong>{el === d.correcta ? "¡Correcta!" : "No es esa."}</strong> <span style={{ color: K.gris }}>Sale de:</span> «{d.cita}»
+            <strong>{el === d.correcta ? "¡Correcta!" : "No es esa."}</strong> {d.explicacion}
+            <div style={{ marginTop: 8, fontSize: 13, color: K.gris }}>Sale de: «{d.cita}»{d.fuente ? <> · {d.fuente}</> : null}</div>
           </div>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
             <a href="/app" style={{ ...btnRojo, flex: "1 1 220px" }}>Sigue con {total} más</a>
