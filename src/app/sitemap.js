@@ -1,11 +1,16 @@
-import { SITE } from "../lib/site";
+import { SITE, ACTUALIZADO } from "../lib/site";
+
+const PAGINAS = [
+  { ruta: "/", changeFrequency: "weekly", priority: 1 },
+  { ruta: "/fuentes", changeFrequency: "monthly", priority: 0.4 },
+  { ruta: "/privacidad", changeFrequency: "yearly", priority: 0.2 },
+  { ruta: "/aviso-legal", changeFrequency: "yearly", priority: 0.2 },
+];
 
 export default function sitemap() {
-  const hoy = new Date();
-  return [
-    { url: `${SITE}/`, lastModified: hoy, changeFrequency: "weekly", priority: 1 },
-    { url: `${SITE}/fuentes`, lastModified: hoy, changeFrequency: "monthly", priority: 0.4 },
-    { url: `${SITE}/privacidad`, lastModified: hoy, changeFrequency: "yearly", priority: 0.2 },
-    { url: `${SITE}/aviso-legal`, lastModified: hoy, changeFrequency: "yearly", priority: 0.2 },
-  ];
+  return PAGINAS.map(({ ruta, ...resto }) => ({
+    url: `${SITE}${ruta}`,
+    lastModified: new Date(ACTUALIZADO[ruta]),
+    ...resto,
+  }));
 }

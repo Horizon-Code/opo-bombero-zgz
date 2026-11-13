@@ -3,6 +3,16 @@ import React from "react";
 import s from "../app/landing.module.css";
 import { Marca } from "./Insignia";
 
+// Menú principal. Cuando una sección tenga página propia, pon su ruta en «pagina»
+// y el menú dejará de saltar al ancla de la portada.
+const MENU = [
+  { texto: "Cómo funciona", ancla: "como-funciona" },
+  { texto: "Callejero", ancla: "callejero", pagina: null },
+  { texto: "Temario", ancla: "temario", pagina: null },
+  { texto: "Simulacro", ancla: "simulacro", pagina: null },
+  { texto: "Preguntas frecuentes", ancla: "preguntas-frecuentes" },
+];
+
 export function Cabecera({ enLanding = false }) {
   const ancla = (id) => (enLanding ? `#${id}` : `/#${id}`);
   return (
@@ -13,11 +23,9 @@ export function Cabecera({ enLanding = false }) {
           <span>Opo <span style={{ color: "#E8473B" }}>Bomberos</span> <span style={{ color: "#F5B700" }}>ZGZ</span></span>
         </a>
         <div className={s.navLinks}>
-          <a href={ancla("como-funciona")}>Cómo funciona</a>
-          <a href={ancla("callejero")}>Callejero</a>
-          <a href={ancla("temario")}>Temario</a>
-          <a href={ancla("simulacro")}>Simulacro</a>
-          <a href={ancla("preguntas-frecuentes")}>Preguntas frecuentes</a>
+          {MENU.map((m) => (
+            <a key={m.ancla} href={m.pagina || ancla(m.ancla)}>{m.texto}</a>
+          ))}
         </div>
         <a href="/app" className={s.btnLight}>Entrar</a>
       </nav>
