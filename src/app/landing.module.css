@@ -117,7 +117,7 @@
 
 /* páginas legales */
 .legal { padding-top: 48px; padding-bottom: 80px; max-width: 820px; }
-.legal h1 { font-family: 'Saira Condensed', sans-serif; text-transform: uppercase; font-size: 44px; margin: 0 0 20px; }
+.legal h1 { font-family: 'Saira Condensed', sans-serif; text-transform: uppercase; font-size: 44px; line-height: 1.05; margin: 0 0 20px; }
 .legal h2 { font-size: 22px; margin: 32px 0 8px; }
 .legal p, .legal li { font-size: 16px; line-height: 1.6; color: #2B3136; }
 .legal ul { padding-left: 22px; }
@@ -127,6 +127,7 @@
   .brand { font-size: 22px; }
   .camIn { padding: 24px 18px; }
   .camFotos { padding: 12px; }
+  .legal h1 { font-size: 34px; line-height: 1.05; }
 }
 
 /* «Así estudias»: las notas de la izquierda van alineadas al móvil; en pantallas estrechas, a la izquierda */

@@ -5,6 +5,7 @@ import estructura from "../data/estructura.json";
 import { Cabecera, Pie } from "../components/Publica";
 import Camiseta from "../components/Camiseta";
 import { SITE } from "../lib/site";
+import { TEMAS, miles } from "../lib/temario";
 import { todasLasPreguntas, CALLES, POLIGONOS } from "../lib/callejero";
 import datos from "../data/landing.json";
 import AsiEstudias from "../components/landing/AsiEstudias";
@@ -16,19 +17,12 @@ import { K, DISPLAY, titulo, kicker, btnRojo } from "../components/landing/estil
 // el contador de correcciones se refresca cada hora
 export const revalidate = 3600;
 
-const TITULOS = {
-  35: "Código Técnico de la Edificación",
-  37: "Reglamento de la Agrupación de Voluntarios de Protección Civil del SCIS de Zaragoza",
-  39: "Servicios de Prevención, Extinción de Incendios y Salvamento de Aragón: Ley 1/2013",
-  40: "Servicios de Prevención, Extinción de Incendios y Salvamento de Aragón: Decretos 158/2014 y 159/2014",
-};
-const miles = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-const temas = estructura.temas.map((t) => ({
+const temas = TEMAS.map((t) => ({
   n: t.n,
   parte: t.parte,
-  titulo: TITULOS[t.n] || t.titulo,
-  preguntas: t.nodos.reduce((a, n) => a + n.bloques.reduce((b, x) => b + x.ids.length, 0), 0),
-  subtemas: t.nodos.map((n) => n.epigrafe),
+  titulo: t.titulo,
+  preguntas: t.preguntas,
+  subtemas: t.apartados.map((a) => a.epigrafe),
   ej: datos.ejemplos[t.n] || null,
 }));
 const TOTAL = miles(estructura.total);
@@ -210,6 +204,7 @@ export default async function Landing() {
               ))}
             </div>
             <Recorridos recorridos={datos.recorridos} />
+            <a href="/callejero" style={{ fontWeight: 700, color: K.amarillo }}>Ver las {CALLES.length} calles y cómo es la prueba →</a>
           </div>
         </section>
 
@@ -229,6 +224,7 @@ export default async function Landing() {
             <h3 className={`${s.display} ${s.h3}`}>Parte II · Técnico (temas 9 a 40)</h3>
             <ListaTemas parte={2} />
           </details>
+          <a href="/temario" style={{ fontWeight: 700 }}>Ver el temario completo con todos los apartados →</a>
         </section>
 
         {/* ====== simulacro ====== */}
@@ -240,6 +236,7 @@ export default async function Landing() {
                 <h2 id="h-sim" style={titulo(32, 44)}>Simulacro con el formato del examen</h2>
                 <p style={{ margin: 0, fontSize: 17, lineHeight: 1.55, color: K.tinta2 }}>20 preguntas de la Parte I (legislación) y 80 de la Parte II (técnico), repartidas entre los 40 temas. 75 minutos de reloj, tres opciones por pregunta y la misma penalización del examen: +0,10 por acierto, −0,025 por fallo y 0 en blanco.</p>
                 <a href="/app" style={{ ...btnRojo, alignSelf: "flex-start" }}>Hacer un simulacro</a>
+                <a href="/examen" style={{ fontWeight: 700 }}>Cómo es el examen, ejercicio a ejercicio →</a>
               </div>
               <div style={{ flex: "0 1 360px", minWidth: 0, display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
                 {[["20", "Parte I"], ["80", "Parte II"], ["75′", "de reloj"], ["−¼", "por fallo"]].map(([v, t]) => (
@@ -254,7 +251,7 @@ export default async function Landing() {
         </section>
 
         {/* ====== pruebas físicas ====== */}
-        <section aria-labelledby="h-fisicas" style={{ ...sec, padding: "56px 24px 24px", display: "flex", flexDirection: "column", gap: 16 }}>
+        <section id="pruebas-fisicas" aria-labelledby="h-fisicas" style={{ ...sec, padding: "56px 24px 24px", display: "flex", flexDirection: "column", gap: 16 }}>
           <div style={{ display: "flex", flexWrap: "wrap", alignItems: "baseline", gap: "8px 16px" }}>
             <h2 id="h-fisicas" style={titulo(32, 44)}>Pruebas físicas</h2>
             <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", background: K.amarillo, padding: "4px 10px", borderRadius: 3 }}>Próximamente</span>
@@ -266,6 +263,8 @@ export default async function Landing() {
             ))}
           </div>
         </section>
+
+        <div style={{ ...sec, padding: "0 24px" }}><a href="/pruebas-fisicas" style={{ fontWeight: 700 }}>Marcas oficiales y calculadora de las pruebas físicas →</a></div>
 
         <section id="camiseta" aria-labelledby="h-camiseta" className={`${s.wrap} ${s.section}`}>
           <Camiseta />
