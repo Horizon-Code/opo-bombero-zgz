@@ -2,15 +2,16 @@
 import React from "react";
 import s from "../app/landing.module.css";
 import { Marca } from "./Insignia";
+import { PAGINAS_INFO } from "../lib/paginas";
 
 // Menú principal. Cuando una sección tenga página propia, pon su ruta en «pagina»
 // y el menú dejará de saltar al ancla de la portada.
 const MENU = [
-  { texto: "Cómo funciona", ancla: "como-funciona" },
-  { texto: "Callejero", ancla: "callejero", pagina: null },
-  { texto: "Temario", ancla: "temario", pagina: null },
-  { texto: "Simulacro", ancla: "simulacro", pagina: null },
-  { texto: "Preguntas frecuentes", ancla: "preguntas-frecuentes" },
+  { texto: "Convocatoria 2026", ancla: "inicio", pagina: "/convocatoria-2026" },
+  { texto: "Temario", ancla: "temario", pagina: "/temario" },
+  { texto: "Examen", ancla: "simulacro", pagina: "/examen" },
+  { texto: "Callejero", ancla: "callejero", pagina: "/callejero" },
+  { texto: "Pruebas físicas", ancla: "pruebas-fisicas", pagina: "/pruebas-fisicas" },
 ];
 
 export function Cabecera({ enLanding = false }) {
@@ -47,6 +48,9 @@ export function Pie() {
           <p>Proyecto independiente para preparar la oposición de Bombero-Conductor del Ayuntamiento de Zaragoza. Sin relación con el Ayuntamiento ni con su Servicio contra Incendios.</p>
           <p style={{ color: "#9AA3AA", fontSize: 13 }}>Parte del contenido se basa en manuales del CEIS Guadalajara y Grupo Tragsa (licencia CC BY-NC-SA 4.0), del IVASPE y de la Escuela de Bomberos de Zaragoza, y en normativa publicada en el BOE, el BOA y el BOPZ. Detalle en «Fuentes y licencias».</p>
         </div>
+        <nav aria-label="La oposición" className={s.footNav}>
+          {PAGINAS_INFO.map((p) => <a key={p.ruta} href={p.ruta}>{p.corto}</a>)}
+        </nav>
         <nav aria-label="Legal" className={s.footNav}>
           <a href="/#camiseta">La camiseta</a>
           <a href="/fuentes">Fuentes y licencias</a>
