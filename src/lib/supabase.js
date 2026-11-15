@@ -159,3 +159,49 @@ export const guardarProgresoCallejero = async (filas, userId) => {
   const { error } = await supabase.from("progreso_callejero").upsert(filas.map((f) => ({ ...f, user_id: userId })));
   if (error) console.error("guardarProgresoCallejero:", error);
 };
+
+/* ---------- plan de pruebas físicas (migración 10) ---------- */
+// Devuelve null en cada parte si la migración 10 no está aplicada, para que la pestaña lo diga.
+export const getFisicas = async () => {
+  const [p, e, s] = await Promise.all([
+    supabase.from("fis_perfil").select("*").maybeSingle(),
+    supabase.from("fis_estado").select("prueba,datos"),
+    supabase.from("fis_sesiones").select("id,fecha,semana,prueba,tipo,nivel,modo,series,resultado,created_at").order("created_at"),
+  ]);
+  const falta = [p, e, s].find((r) => r.error);
+  if (falta) {
+    console.error("getFisicas:", falta.error);
+    return { error: falta.error.message || "error", perfil: null, estados: {}, sesiones: [] };
+  }
+  return {
+    perfil: p.data,
+    estados: Object.fromEntries((e.data || []).map((r) => [r.prueba, r.datos])),
+    sesiones: s.data || [],
+  };
+};
+export const guardarPerfilFis = async (perfil, userId) => {
+  const { data, error } = await supabase.from("fis_perfil")
+    .upsert({ ...perfil, user_id: userId, updated_at: new Date().toISOString() }).select().single();
+  if (error) throw error;
+  return data;
+};
+export const guardarEstadosFis = async (estados, userId) => {
+  const filas = Object.entries(estados).map(([prueba, datos]) => ({ user_id: userId, prueba, datos, updated_at: new Date().toISOString() }));
+  if (!filas.length) return;
+  const { error } = await supabase.from("fis_estado").upsert(filas);
+  if (error) throw error;
+};
+export const addSesionFis = async (fila, userId) => {
+  const { data, error } = await supabase.from("fis_sesiones").insert({ ...fila, user_id: userId })
+    .select("id,fecha,semana,prueba,tipo,nivel,modo,series,resultado,created_at").single();
+  if (error) throw error;
+  return data;
+};
+// Deshacer: borra la sesión y devuelve el estado que había antes de registrarla
+export const deshacerSesionFis = async (id) => {
+  const { data, error } = await supabase.from("fis_sesiones").select("prueba,estado_antes").eq("id", id).single();
+  if (error) throw error;
+  const { error: e2 } = await supabase.from("fis_sesiones").delete().eq("id", id);
+  if (e2) throw e2;
+  return data;
+};

@@ -7,7 +7,7 @@ import {
 import {
   supabase, logout,
   getResultados,
-  getMarcas, addMarca, delMarca, getObjetivos, setObjetivo as dbSetObjetivo,
+  getMarcas,
   getProgreso, getMisAvisos, getProgresoCallejero,
 } from "../lib/supabase";
 import { Callejero } from "./Callejero";
@@ -15,41 +15,13 @@ import { AvisosResueltos } from "./Avisos";
 import { Temario, useEstadoTemas } from "./Temario";
 import { Insignia, Marca } from "./Insignia";
 import EntrarConGoogle from "./EntrarConGoogle";
+import Fisicas from "./Fisicas";
 import { statsBloques, statsDe, bloquePorId, TOTAL_PREGUNTAS } from "../lib/banco";
 import { C, FONT_DISPLAY, FONT_BODY, hazard, hoy, fmtFecha, fechaLocal, Centro, Card, H2, StripeBar, Vacio, Bolita, inputStyle, btnStyle } from "./ui";
-import { puntosBaremo, fmtPuntos, BAREMO } from "../lib/baremo";
 
 /* ============================================================
    OPO BOMBERO ZGZ — multiusuario (Supabase + Google login)
    ============================================================ */
-
-const fmtTime = (s) => {
-  if (s == null || isNaN(s)) return "—";
-  const m = Math.floor(s / 60);
-  const sec = (s % 60).toFixed(s % 60 % 1 ? 1 : 0);
-  return m > 0 ? `${m}:${String(sec).padStart(2, "0")}` : `${sec}s`;
-};
-const parseTime = (str) => {
-  if (!str) return null;
-  const t = String(str).trim().replace(",", ".");
-  if (t.includes(":")) {
-    const [m, s] = t.split(":");
-    const v = parseInt(m, 10) * 60 + parseFloat(s || 0);
-    return isNaN(v) ? null : v;
-  }
-  const v = parseFloat(t);
-  return isNaN(v) ? null : v;
-};
-// Objetivos por defecto alineados al plan v2 y al baremo oficial (Anexo III)
-const PRUEBAS = [
-  { id: "r1500", nombre: "1.500 m", tipo: "tiempo", mejor: "menor", defObj: 268, hint: "mm:ss" }, // 4:28 = 10 pts
-  { id: "cuerda", nombre: "Cuerda 6 m", tipo: "tiempo", mejor: "menor", defObj: 6, hint: "segundos" }, // 8 pts
-  { id: "nat", nombre: "Natación 100 m", tipo: "tiempo", mejor: "menor", defObj: 76, hint: "mm:ss" }, // 1:16 ≈ 7,5 pts
-  { id: "agi", nombre: "Agilidad (conos y vallas)", tipo: "tiempo", mejor: "menor", defObj: 8.2, hint: "segundos" }, // 10 pts
-  { id: "v100", nombre: "100 m lisos (entreno)", tipo: "tiempo", mejor: "menor", defObj: 14, hint: "segundos" },
-  { id: "dom", nombre: "Dominadas", tipo: "reps", mejor: "mayor", defObj: 10, hint: "repeticiones" },
-  { id: "press", nombre: "Press banca 45 kg", tipo: "reps", mejor: "mayor", defObj: 20, hint: "repeticiones" },
-];
 
 /* ============================================================ */
 export default function App() {
@@ -59,7 +31,6 @@ export default function App() {
 
   const [resultados, setResultados] = useState([]);
   const [marcas, setMarcas] = useState([]);
-  const [objetivos, setObjetivos] = useState({});
   const [progreso, setProgreso] = useState({});
   const [progresoCallejero, setProgresoCallejero] = useState({});
   const [avisos, setAvisos] = useState([]);           // avisos del usuario sobre preguntas (los suyos)
@@ -93,9 +64,9 @@ export default function App() {
     (async () => {
       try {
         setErrorCarga(false);
-        const [r, m, o, pg] = await Promise.all([getResultados(), getMarcas(), getObjetivos(), getProgreso()]);
+        const [r, m, pg] = await Promise.all([getResultados(), getMarcas(), getProgreso()]);
         if (cancelado) return;
-        setResultados(r); setMarcas(m); setObjetivos(o); setProgreso(pg);
+        setResultados(r); setMarcas(m); setProgreso(pg);
         setReady(true);
         getMisAvisos().then((a) => { if (!cancelado) setAvisos(a); }); // no bloquea la carga si falla
         getProgresoCallejero().then((p) => { if (!cancelado) setProgresoCallejero(p); });
@@ -187,7 +158,7 @@ export default function App() {
           <Callejero user={user} progreso={progresoCallejero} setProgreso={setProgresoCallejero} resultados={resultados} setResultados={setResultados}
             avisos={avisos} onAviso={onAviso} />
         )}
-        {tab === "fisico" && <FisicoProximamente />}
+        {tab === "fisico" && <Fisicas user={user} marcas={marcas} setMarcas={setMarcas} />}
       </main>
     </div>
   );
@@ -364,169 +335,5 @@ function AvisoCamiseta() {
         </button>
       </div>
     </section>
-  );
-}
-
-/* ============ PRUEBAS FÍSICAS · próximamente ============ */
-// La sección se está rehaciendo (plan de entrenamiento con objetivo de 10 en
-// 1.500 m, natación 100 m y cuerda 6 m). Mientras tanto, la pestaña lo anuncia.
-// El componente Fisico de abajo se conserva como base y no se muestra.
-const PRUEBAS_10 = [
-  { nombre: "1.500 m", marca: "< 4:28", nota: "Carrera", color: C.red },
-  { nombre: "Natación 100 m", marca: "< 1:00", nota: "Piscina", color: C.steel },
-  { nombre: "Cuerda 6 m", marca: "≤ 5,00 s", nota: "Trepa", color: C.yellow },
-];
-const LO_QUE_LLEGA = [
-  ["Plan hasta el examen", "El entrenamiento del día y los tiempos que deberías hacer, semana a semana."],
-  ["Registro en un toque", "Apunta lo que hiciste hoy sin rellenar formularios."],
-  ["Tests de control", "Cada 3-4 semanas, con tus puntos del baremo oficial."],
-  ["Strava (opcional)", "Que las carreras y la piscina lleguen solas."],
-];
-
-function FisicoProximamente() {
-  return (
-    <div style={{ display: "grid", gap: 14 }}>
-      <section style={{ background: C.ink, color: "#fff", borderRadius: 6, overflow: "hidden" }}>
-        <div style={hazard(10)} />
-        <div style={{ padding: "22px 22px 24px" }}>
-          <span style={{ display: "inline-block", fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 13, letterSpacing: 2, textTransform: "uppercase", background: C.yellow, color: C.ink, padding: "3px 10px", borderRadius: 3 }}>
-            Próximamente
-          </span>
-          <h2 style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 38, letterSpacing: 1.5, textTransform: "uppercase", margin: "12px 0 6px", lineHeight: 1 }}>
-            Pruebas <span style={{ color: C.yellow }}>físicas</span>
-          </h2>
-          <p style={{ color: "#C8CED3", fontSize: 15, margin: 0, maxWidth: 560, lineHeight: 1.5 }}>
-            Estamos rehaciendo esta sección. El objetivo será siempre el <strong style={{ color: "#fff" }}>10</strong> en cada prueba y la aplicación te dirá qué entrenar cada día.
-          </p>
-        </div>
-      </section>
-
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}>
-        {PRUEBAS_10.map((p) => (
-          <Card key={p.nombre} style={{ padding: 14, borderTop: `4px solid ${p.color}` }}>
-            <div style={{ fontSize: 11, letterSpacing: 1, textTransform: "uppercase", color: C.inkSoft }}>{p.nota} · {p.nombre}</div>
-            <div style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 32, lineHeight: 1.1, marginTop: 4 }}>{p.marca}</div>
-            <div style={{ fontSize: 12, color: C.inkSoft }}>marca para el 10</div>
-          </Card>
-        ))}
-      </div>
-
-      <Card>
-        <H2>Lo que llega</H2>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
-          {LO_QUE_LLEGA.map(([t, d], i) => (
-            <div key={t} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-              <span style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 16, minWidth: 28, height: 28, borderRadius: 4, background: C.ink, color: C.yellow, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>{i + 1}</span>
-              <div>
-                <div style={{ fontWeight: 600, fontSize: 14 }}>{t}</div>
-                <div style={{ fontSize: 13, color: C.inkSoft, lineHeight: 1.45 }}>{d}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </Card>
-    </div>
-  );
-}
-
-/* ============ MARCAS FÍSICAS (antiguo, sin uso) ============ */
-function Fisico({ user, marcas, setMarcas, objetivos, setObjetivos }) {
-  const [prueba, setPrueba] = useState(PRUEBAS[0].id);
-  const [valor, setValor] = useState("");
-  const [fecha, setFecha] = useState(hoy());
-  const [editObj, setEditObj] = useState("");
-
-  const cfg = PRUEBAS.find((p) => p.id === prueba);
-  const obj = objetivos[prueba] ?? cfg.defObj;
-  const entries = marcas.filter((e) => e.prueba === prueba).sort((a, b) => String(a.fecha).localeCompare(String(b.fecha)));
-
-  const add = async () => {
-    const v = cfg.tipo === "tiempo" ? parseTime(valor) : parseFloat(valor);
-    if (v == null || isNaN(v) || v <= 0) return;
-    const m = await addMarca({ prueba, valor: v, fecha }, user.id);
-    if (m) { setMarcas([...marcas, m]); setValor(""); }
-  };
-  const del = async (id) => { await delMarca(id); setMarcas(marcas.filter((e) => e.id !== id)); };
-  const cambiarObjetivo = async () => {
-    const v = cfg.tipo === "tiempo" ? parseTime(editObj) : parseFloat(editObj);
-    if (v == null || isNaN(v) || v <= 0) return;
-    await dbSetObjetivo(prueba, v, user.id);
-    setObjetivos({ ...objetivos, [prueba]: v });
-    setEditObj("");
-  };
-
-  const chartData = entries.map((e) => ({ fecha: fmtFecha(e.fecha), valor: Number(e.valor) }));
-
-  return (
-    <div style={{ display: "grid", gap: 14 }}>
-      <Card>
-        <H2>Registrar marca</H2>
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-          <select value={prueba} onChange={(e) => setPrueba(e.target.value)} style={inputStyle}>
-            {PRUEBAS.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-          </select>
-          <input value={valor} onChange={(e) => setValor(e.target.value)} placeholder={cfg.hint} style={{ ...inputStyle, width: 130 }} />
-          <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} style={inputStyle} />
-          <button onClick={add} style={btnStyle()}>Guardar</button>
-        </div>
-        <div style={{ marginTop: 12, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", fontSize: 14 }}>
-          <span style={{ color: C.inkSoft }}>
-            Objetivo actual: <strong style={{ color: C.ink }}>{cfg.tipo === "tiempo" ? fmtTime(obj) : obj}</strong>{" "}
-            ({cfg.mejor === "menor" ? "menos es mejor" : "más es mejor"})
-          </span>
-          <input value={editObj} onChange={(e) => setEditObj(e.target.value)} placeholder="Nuevo objetivo" style={{ ...inputStyle, width: 130 }} />
-          <button onClick={cambiarObjetivo} style={{ ...btnStyle(C.steel), padding: "6px 12px", fontSize: 13 }}>Cambiar objetivo</button>
-        </div>
-        {(() => {
-          // Calculadora de baremo en vivo: puntos de la marca que se está escribiendo
-          if (!BAREMO[prueba]) return null;
-          const v = cfg.tipo === "tiempo" ? parseTime(valor) : parseFloat(valor);
-          if (v == null || isNaN(v) || v <= 0) return (
-            <p style={{ fontSize: 12, color: C.inkSoft, marginTop: 8 }}>Prueba oficial con baremo: escribe una marca y verás sus puntos (5–10) según el Anexo III.</p>
-          );
-          const pts = puntosBaremo(prueba, v);
-          return (
-            <p style={{ fontSize: 14, marginTop: 8, fontWeight: 600, color: pts === 0 ? C.red : pts >= 8 ? C.green : C.ink }}>
-              {cfg.tipo === "tiempo" ? fmtTime(v) : v} en el baremo oficial = {fmtPuntos(pts)}
-              {pts === 0 && " (fuera del tiempo máximo)"}
-            </p>
-          );
-        })()}
-        <p style={{ fontSize: 12, color: C.inkSoft, marginTop: 8 }}>
-          Objetivos por defecto alineados al baremo oficial de la última convocatoria. Cuando salgan nuevas bases en el BOPZ, revisa el Anexo III.
-        </p>
-      </Card>
-
-      <Card>
-        <H2>Progreso · {cfg.nombre}</H2>
-        {entries.length < 2 ? (
-          <Vacio texto="Registra al menos dos marcas de esta prueba para ver tu curva." />
-        ) : (
-          <ResponsiveContainer width="100%" height={220}>
-            <LineChart data={chartData}>
-              <CartesianGrid stroke={C.line} strokeDasharray="3 3" />
-              <XAxis dataKey="fecha" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} domain={["auto", "auto"]} tickFormatter={(v) => (cfg.tipo === "tiempo" ? fmtTime(v) : v)} width={55} />
-              <Tooltip formatter={(v) => (cfg.tipo === "tiempo" ? fmtTime(v) : v)} />
-              <ReferenceLine y={obj} stroke={C.green} strokeDasharray="5 4" label={{ value: "objetivo", fontSize: 11, fill: C.green }} />
-              <Line type="monotone" dataKey="valor" stroke={C.red} strokeWidth={2.5} dot={{ r: 3.5 }} />
-            </LineChart>
-          </ResponsiveContainer>
-        )}
-        {entries.length > 0 && (
-          <div style={{ marginTop: 10 }}>
-            {entries.slice().reverse().slice(0, 6).map((e) => (
-              <div key={e.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 14, padding: "5px 0", borderBottom: `1px solid ${C.line}` }}>
-                <span>
-                  {fmtFecha(e.fecha)} — <strong>{cfg.tipo === "tiempo" ? fmtTime(Number(e.valor)) : Number(e.valor)}</strong>
-                  {(() => { const f = fmtPuntos(puntosBaremo(prueba, Number(e.valor))); return f ? <span style={{ color: C.inkSoft, marginLeft: 6 }}>· {f}</span> : null; })()}
-                </span>
-                <button onClick={() => del(e.id)} style={{ background: "none", border: "none", color: C.red, fontSize: 12 }}>borrar</button>
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
-    </div>
   );
 }

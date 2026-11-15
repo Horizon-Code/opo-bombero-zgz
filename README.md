@@ -34,7 +34,7 @@ Sin IA ni API de pago: el temario es fijo y las preguntas salen del corpus (`cor
 
 ### 1. Supabase
 1. Crea un proyecto en https://supabase.com (el plan gratuito sirve).
-2. SQL Editor → ejecuta, en orden, `supabase/schema.sql` y de `migracion_2.sql` a `migracion_7.sql` (si ya tenías la app, solo las que te falten).
+2. SQL Editor → ejecuta, en orden, `supabase/schema.sql` y de `migracion_2.sql` a `migracion_10.sql` (si ya tenías la app, solo las que te falten).
 3. Project Settings → API: copia la **URL**, la **anon key** y la **service role key** (esta última solo para cargar el banco, nunca en Vercel ni en git).
 
 ### 2. Login con Google
