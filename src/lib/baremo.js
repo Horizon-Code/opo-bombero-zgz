@@ -1,12 +1,18 @@
 /* ============================================================
-   Baremo oficial · Bomberos Ayuntamiento de Zaragoza (hombres)
-   Fuente: Anexo III de las bases de la convocatoria.
+   Baremo oficial · Bomberos Ayuntamiento de Zaragoza
+   Fuente: Texto refundido de las bases generales de turno libre, base 9.4.C
+   (https://zaragoza.es/cont/paginas/oferta/archivos/bases-textorefundido/bases_turno_libre.pdf).
+   Cotejado el 15/11/2026: la tabla de hombres coincide tramo a tramo y la de
+   mujeres se ha añadido desde el mismo texto.
    Cada tabla: pares [umbral, puntos] en orden ascendente de umbral.
    - inclusive: true  → puntúa si valor <= umbral ("inferior o igual a")
    - inclusive: false → puntúa si valor <  umbral ("inferior a")
    Valores en segundos. Si el valor supera el máximo → 0 (NO APTO).
+   Nota: el texto dice «5 puntos en 1:38,00» y «10 puntos en 1:00,00 o menos»,
+   pero las tablas usan «inferior a». Aquí se sigue la tabla.
    ============================================================ */
 
+// Hombres (se mantiene el nombre BAREMO para no romper lo que ya lo usa)
 export const BAREMO = {
   // Carrera 1.500 m — máximo 5'50" (350 s)
   r1500: {
@@ -58,12 +64,54 @@ export const BAREMO = {
   },
 };
 
+// Mujeres (misma fuente). La agilidad queda fuera de momento.
+export const BAREMO_M = {
+  // Carrera 1.500 m — máximo 5'50" (350 s)
+  r1500: {
+    inclusive: false,
+    maxApto: 350,
+    tabla: [
+      [310, 10.0], [311, 9.75], [313, 9.5], [315, 9.25], [317, 9.0],
+      [318, 8.75], [320, 8.5], [322, 8.25], [324, 8.0], [326, 7.75],
+      [329, 7.5], [331, 7.25], [333, 7.0], [337, 6.75], [341, 6.5],
+      [343, 6.25], [345, 6.0], [347, 5.75], [348, 5.5], [349, 5.25],
+      [350, 5.0],
+    ],
+  },
+  // Natación 100 m libre — máximo 1'38" (98 s)
+  nat: {
+    inclusive: false,
+    maxApto: 98,
+    tabla: [
+      [70, 10.0], [72, 9.75], [74, 9.5], [75, 9.25], [76, 9.0],
+      [78, 8.75], [80, 8.5], [81, 8.25], [82, 8.0], [84, 7.75],
+      [85, 7.5], [86, 7.25], [87, 7.0], [90, 6.75], [92, 6.5],
+      [93, 6.25], [94, 6.0], [95, 5.75], [96, 5.5], [97, 5.25],
+      [98, 5.0],
+    ],
+  },
+  // Cuerda lisa 6 m — máximo 11"00 (tabla "inferior o igual")
+  cuerda: {
+    inclusive: true,
+    maxApto: 11,
+    tabla: [
+      [8.5, 10.0], [8.63, 9.75], [8.75, 9.5], [8.87, 9.25], [9.0, 9.0],
+      [9.13, 8.75], [9.25, 8.5], [9.37, 8.25], [9.5, 8.0], [9.63, 7.75],
+      [9.75, 7.5], [9.87, 7.25], [10.0, 7.0], [10.25, 6.75], [10.5, 6.5],
+      [10.57, 6.25], [10.68, 6.0], [10.75, 5.75], [10.82, 5.5], [10.93, 5.25],
+      [11.0, 5.0],
+    ],
+  },
+};
+
+export const baremoDe = (sexo) => (sexo === "M" ? BAREMO_M : BAREMO);
+
 /**
- * Puntos del baremo oficial para una marca.
+ * Puntos del baremo oficial para una marca (sexo: "H" o "M").
  * @returns {number|null} 5.00–10.00, 0 si NO APTO, null si la prueba no tiene baremo.
  */
-export function puntosBaremo(pruebaId, valor) {
-  const b = BAREMO[pruebaId];
+export function puntosBaremo(pruebaId, valor, sexo = "H") {
+  const b = baremoDe(sexo)[pruebaId];
   if (!b || valor == null || isNaN(valor)) return null;
   const v = Number(valor);
   for (const [umbral, puntos] of b.tabla) {
